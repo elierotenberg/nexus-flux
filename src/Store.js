@@ -4,12 +4,14 @@ const Remutable = require('remutable');
 const { Patch } = Remutable;
 
 class Producer {
-  constructor(emit) {
+  constructor(emit, remutableConsumer) {
     if(__DEV__) {
       emit.should.be.a.Function;
+      remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
     }
     _.bindAll(this);
     this.emit = emit;
+    this.remutableConsumer = remutableConsumer;
   }
 
   update(patch) {
@@ -27,12 +29,15 @@ class Producer {
 }
 
 class Consumer {
-  constructor(on) {
+  constructor(on, remutableConsumer) {
     if(__DEV__) {
       on.should.be.a.Function;
+      remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
     }
     _.bindAll(this);
     this.on = on;
+    this.remutableConsumer = remutableConsumer;
+
     if(__DEV__) {
       this._hasOnChange = false;
       this._hasOnDelete = false;
@@ -74,6 +79,7 @@ class Consumer {
 class Engine {
   constructor() {
     this.remutable = new Remutable();
+    this.consumer = this.remutable.createConsumer();
     _.bindAll(this);
     this.events = _.bindAll(new EventEmitter())
     .on('update', this.update)
@@ -81,30 +87,30 @@ class Engine {
   }
 
   createProducer() {
-    return new Producer(this.events.emit);
+    return new Producer(this.events.emit, this.remutable.createConsumer());
   }
 
   createConsumer(lifespan) {
     if(__DEV__) {
-      should(this.remutable).be.an.instanceOf(Remutable);
+      this.remutable.should.be.an.instanceOf(Remutable);
       lifespan.should.have.property('then').which.is.a.Function;
     }
-    return new Consumer(_.bindAll(this.events.within(lifespan)).on);
+    return new Consumer(_.bindAll(this.events.within(lifespan)).on, this.consumer);
   }
 
   update(patch) {
     if(__DEV__) {
-      should(this.remutable).be.an.instanceOf(Remutable);
+      this.remutable.should.be.an.instanceOf(Remutable);
       patch.should.be.an.instanceOf(Patch);
       this.remutable.match(patch).should.be.true;
     }
     this.remutable.apply(patch);
-    this.events.emit('change', { store: this.remutable.head, patch });
+    this.events.emit('change', this.consumer, patch);
   }
 
   delete() {
     if(__DEV__) {
-      should(this.remutable).be.an.instanceOf(Remutable);
+      this.remutable.should.be.an.instanceOf(Remutable);
     }
     this.remutable = null;
     this.events.emit('delete');

@@ -1,7 +1,5 @@
 const asap = require('asap');
 const { EventEmitter } = require('lifespan');
-const Remutable = require('remutable');
-const { Patch } = Remutable;
 
 class Producer {
   constructor(emit) {
@@ -52,7 +50,6 @@ class Consumer {
 
 class Engine {
   constructor() {
-    this.remutable = new Remutable();
     _.bindAll(this);
     this.events = _.bindAll(new EventEmitter());
   }
@@ -63,7 +60,6 @@ class Engine {
 
   createConsumer(lifespan) {
     if(__DEV__) {
-      should(this.remutable).be.an.instanceOf(Remutable);
       lifespan.should.have.property('then').which.is.a.Function;
     }
     return new Consumer(_.bindAll(this.events.within(lifespan)).on);

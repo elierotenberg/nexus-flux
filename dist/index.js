@@ -11,3 +11,6 @@ var __NODE__ = !__BROWSER__;
 if (__DEV__) {
   Promise.longStackTraces();
 }
+var Client = require("./Client");
+var Server = require("./Server");
+module.exports = { Client: Client, Server: Server };
