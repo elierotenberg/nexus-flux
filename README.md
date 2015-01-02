@@ -54,7 +54,7 @@ removeItem.onDispatch((clientID, { name }) => {
 
 #### Implementation example: local service
 
-```
+```js
 const data = {};
 
 // provide trivial fetch/publish implementations
