@@ -24,7 +24,9 @@ Nexus Flux
 
   render() {
     return todoList.head.map((item, name) =>
-      <div onClick={() => this.removeItem.dispatch({ name })}>{item.get('description')} (Click to remove)</div>
+      <div onClick={() => this.removeItem.dispatch({ name })}>
+        {item.get('description')} (Click to remove)
+      </div>
     );
   }
 }
