@@ -30,8 +30,8 @@ class Client {
 
   within(lifespan) {
     return {
-      createStore: (path) => this.createStore(lifespan, path),
-      createAction: (path) => this.createAction(lifespan, path),
+      Store: (path) => this.Store(lifespan, path),
+      Action: (path) => this.Action(lifespan, path),
     };
   }
 
