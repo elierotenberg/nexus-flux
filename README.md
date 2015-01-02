@@ -4,10 +4,10 @@ Nexus Flux
 Abstract Nexus Flux Diagram
 ```
     +-> Action.dispatch ---+--> Client.Events ---+--> Action.onDispatch -+
-    |                                                                    |
+    |    Fire & forget             Stream                 Callback       |
 Component logic         Adapter               Adapter               Global logic
-    |                                                                    |
-    +-- Store.onUpdate  <--+--- Server.Events <--+--- Store.update ------+
+    |      Callback                Stream               Fire & forget    |
+    +-- Store.onUpdate  <--+--- Server.Events <--+------ Store.update ---+
 ```
 
 
