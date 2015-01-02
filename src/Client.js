@@ -39,7 +39,7 @@ class Client {
     return this._adapter.fetch(path);
   }
 
-  createStore(lifespan, path) {
+  Store(lifespan, path) {
     if(this._stores[path] === void 0) {
       this._stores[path] = {
         engine: new Store.Engine(),
@@ -64,7 +64,7 @@ class Client {
     }
   }
 
-  createAction(lifespan, path) {
+  Action(lifespan, path) {
     if(this._actions[path] === void 0) {
       let actionResolve;
       const actionLifespan = new Promise((resolve) => actionResolve = resolve);

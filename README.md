@@ -12,10 +12,10 @@ Nexus Flux
 
   componentWillMount() {
     const lifespan = new Promise((resolve) => this._unmount = resolve);
-    this.getFlux().createStore('/todo-list')
+    this.getFlux().Store('/todo-list')
     .onChange((todoList) => this.setState({ todoList }))
     .onDelete(() => this.setState({ todoList: undefined }));
-    this.removeItem = flux.createAction('/remove-item').dispatch;
+    this.removeItem = flux.Action('/remove-item').dispatch;
   }
 
   componentWillUnmount() {
@@ -35,8 +35,8 @@ Nexus Flux
 #### Server usage example
 
 ```js
-const todoList = server.createStore('/todo-list');
-const removeItem = server.createAction('/remove-item');
+const todoList = server.Store('/todo-list');
+const removeItem = server.Action('/remove-item');
 
 todoList
 .set('first', { description: 'My first item' })
