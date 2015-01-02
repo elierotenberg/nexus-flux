@@ -15,7 +15,7 @@ Nexus Flux
     this.getFlux().createStore('/todo-list')
     .onChange((todoList) => this.setState({ todoList }))
     .onDelete(() => this.setState({ todoList: undefined }));
-    this.removeItem = flux.within(lifespan).createAction('/remove-item');
+    this.removeItem = flux.createAction('/remove-item');
   }
 
   componentWillUnmount() {
