@@ -23,7 +23,7 @@ Nexus Flux
   }
 
   render() {
-    return todoList.head.map((item, name) =>
+    return todoList.map((item, name) =>
       <div onClick={() => this.removeItem.dispatch({ name })}>
         {item.get('description')} (Click to remove)
       </div>
@@ -63,10 +63,12 @@ function publish(path, value) {
   data[path] = value;
 }
 
-// Simply plug the event streams
-const client = new Client(fetch);
+// instanciate a server, a client, and a link
 const server = new Server(publish);
+const client = new Client(fetch);
 const link = server.createLink();
+
+// pipe both ends
 client.pipe(link);
 link.pipe(client);
 
