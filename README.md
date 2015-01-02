@@ -15,7 +15,7 @@ Nexus Flux
     this.getFlux().createStore('/todo-list')
     .onChange((todoList) => this.setState({ todoList }))
     .onDelete(() => this.setState({ todoList: undefined }));
-    this.removeItem = flux.createAction('/remove-item');
+    this.removeItem = flux.createAction('/remove-item').dispatch;
   }
 
   componentWillUnmount() {
@@ -24,7 +24,7 @@ Nexus Flux
 
   render() {
     return todoList.map((item, name) =>
-      <div onClick={() => this.removeItem.dispatch({ name })}>
+      <div onClick={() => this.removeItem({ name })}>
         {item.get('description')} (Click to remove)
       </div>
     );
