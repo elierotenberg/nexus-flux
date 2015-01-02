@@ -1,6 +1,13 @@
 Nexus Flux
 ==========
 
+```
+      +-> Action.dispatch -+ +-> Client.Events --+ +-> Action.onDispatch -+
+      |                    | |      Adapter      | |                      |
+User (React View)       Flux Client           Flux Server      User (Appstate logic)
+      |                    | |      Adapter      | |                      |
+      +- Store.onChange <--+ +-- Server.Events <-+ +-- Store.update ------+
+```
 
 #### Client usage example (in a React view)
 

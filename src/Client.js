@@ -1,6 +1,7 @@
 const Remutable = require('remutable');
 const { Patch } = Remutable;
-const asap = require('asap');
+const { Duplex } = require('stream');
+
 const Store = require('./Store');
 const Action = require('./Action');
 const Server = require('./Server');
@@ -9,23 +10,21 @@ let _Adapter;
 
 const INT_MAX = 9007199254740992;
 
-class Client {
-  constructor(fetch, { as, in, out, }) {
-    as = as || `Client${_.random(1, INT_MAX - 1)}`;
+// Client is a Duplex stream:
+// - Writable is a stream of Server.Events objects
+// - Readable is a stream of Client.Events objects
+class Client extends Duplex {
+  constructor(fetch, clientID = `Client${_.random(1, INT_MAX - 1)}`) {
     if(__DEV__) {
       fetch.should.be.a.Function;
-      as.should.be.a.String;
-      in.should.have.property('on').which.is.a.Function;
-      out.should.have.property('emit').which.is.a.Function;
     }
-    this._adapter = new Adapter(fetch, { in, out, as });
+    super({
+      allowHalfOpen: true,
+      objectMode: true,
+    });
+    this._adapter = new Adapter(fetch, clientID, this);
     this._stores = {};
     this._actions = {};
-    if(__DEV__) {
-      asap(() => {
-        this._adapter.should.be.an.instanceOf(_Adapter);
-      });
-    }
   }
 
   within(lifespan) {
@@ -95,26 +94,21 @@ class Client {
 }
 
 class Adapter {
-  constructor(fetch, { as, in, out }) {
+  constructor(fetch, clientID, stream) {
     if(__DEV__) {
       fetch.should.be.a.Function;
-      as.should.be.a.String;
-      in.should.have.property('on').which.is.a.Function;
-      out.should.have.property('emit').which.is.a.Function;
+      clientID.should.be.a.String;
+      stream.should.be.an.instanceOf(Client);
     }
     _.bindAll(this);
     this._fetch = fetch;
-    this._fromServer = in;
-    this._toServer = out;
+    this._stream = stream;
     this._clientID = as;
     this._stores = {};
     this._actions = {};
     this._fetching = {};
-    this._fromServer
-    .on(Server.Events.Patch, this.receivePatch)
-    .on(Server.Events.Delete, this.receiveDelete);
-    this._toServer
-    .emit(Client.Events.ClientID, this._clientID);
+    this._stream.on('data', this.receive);
+    this.send(new Client.Events.ClientID({ clientID }));
   }
 
   fetch(path, hash = null) {
@@ -162,6 +156,28 @@ class Adapter {
       this._actions.should.have.property(path);
     }
     delete this._actions[path];
+  }
+
+  receive(event) {
+    if(__DEV__) {
+      event.should.be.an.instanceof(Server.Events);
+    }
+    if(event instanceof Server.Events.Patch) {
+      return this.receivePatch(event.path, event.patch);
+    }
+    if(event instanceof Server.Events.Delete) {
+      return this.receiveDelete(event.path);
+    }
+    if(__DEV__) {
+      throw new Error(`Unknown Server Event: ${event}`);
+    }
+  }
+
+  send(event) {
+    if(__DEV__) {
+      event.should.be.an.instanceOf(Client.Events);
+    }
+    this._stream.write(event);
   }
 
   receivePatch(path, patch) {
@@ -253,14 +269,117 @@ class Adapter {
   }
 }
 
+class Events {
+  constructor() {
+    this._s = null;
+  }
+
+  get t() {
+    return null;
+  }
+
+  get p() {
+    return {};
+  }
+
+  stringify() {
+    if(this._s === null) {
+      this._s = JSON.stringify({ t: this.t, p: this.p });
+    }
+    return this._s;
+  }
+
+  static parse(json) {
+    const { t, p } = JSON.parse(json);
+    return new Events._shortName[t](p);
+  }
+
+  static _register(shortName, longName, constructor) {
+    if(__DEV__) {
+      shortName.should.be.a.String;
+      shortName.length.should.be.exactly(1);
+      longName.should.be.a.String;
+      Events._shortName.should.not.have.property(shortName);
+      Events.should.not.have.property(longName);
+    }
+    Object.assign(Events, { [longName]: constructor });
+    Object.assign(Events._shortName, { [shortName]: constructor });
+    Object.assign(constructor.prototype, { t: () => shortName });
+  }
+}
+
+Object.assign(Events, { _shortName: {} });
+
+class ClientID extends Events {
+  constructor({ clientID }) {
+    if(__DEV__) {
+      clientID.should.be.a.String;
+    }
+    super();
+    this.p = { clientID };
+  }
+
+  get clientID() {
+    return this.p.clientID;
+  }
+}
+
+Events._register('c', 'ClientID', ClientID);
+
+class Subscribe extends Events {
+  constructor({ path }) {
+    if(__DEV__) {
+      path.should.be.a.String;
+    }
+    super();
+    this.p = { path };
+  }
+
+  get path() {
+    return this.p.path;
+  }
+}
+
+Events._register('s', 'Subscribe', Subscribe);
+
+class Unsbuscribe extends Events {
+  constructor({ path }) {
+    if(__DEV__) {
+      path.should.be.a.String;
+    }
+    super();
+    this.p = { path };
+  }
+
+  get path() {
+    return this.p.path;
+  }
+}
+
+Events._register('u', 'Unsbuscribe', Unsbuscribe);
+
+class Dispatch extends Events {
+  constructor({ action, params }) {
+    if(__DEV__) {
+      action.should.be.a.String;
+    }
+    super();
+    this.p = { action, params };
+  }
+
+  get action() {
+    return this.p.action;
+  }
+
+  get params() {
+    return this.p.params;
+  }
+}
+
+Events._register('d', 'Dispatch', Dispatch);
+
 _Adapter = Adapter;
 
-Client.Adapter = Adapter;
-Client.Events = {
-  ClientID: 'c',
-  Subscribe: 's',
-  Unsbuscribe: 'u',
-  Dispatch: 'd',
-};
+Object.assign(Client, { Adapter, Events });
 
 module.exports = Client;
