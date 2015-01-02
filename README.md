@@ -28,11 +28,11 @@ Nexus Flux
   }
 
   render() {
-    return todoList.map((item, name) =>
+    return this.state.todoList ? todoList.map((item, name) =>
       <div onClick={() => this.removeItem({ name })}>
         {item.get('description')} (Click to remove)
       </div>
-    );
+    ) : null;
   }
 }
 ```
