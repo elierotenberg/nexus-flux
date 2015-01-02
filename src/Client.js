@@ -6,181 +6,125 @@ const Store = require('./Store');
 const Action = require('./Action');
 const Server = require('./Server');
 
-let _Adapter;
+let _Link;
 
 const INT_MAX = 9007199254740992;
 
 // Client is a Duplex stream:
-// - Writable is a stream of Server.Events objects
-// - Readable is a stream of Client.Events objects
+// - Writable is a stream of Server.Event objects
+// - Readable is a stream of Client.Event objects
 class Client extends Duplex {
-  constructor(fetch, clientID = `Client${_.random(1, INT_MAX - 1)}`) {
+  constructor(clientID = _.uniqueId(`Client${_.random(1, INT_MAX - 1)}`)) {
     if(__DEV__) {
-      fetch.should.be.a.Function;
+      clientID.should.be.a.String;
+      asap(() => {
+        try {
+          this._fetch.should.be.a.Function;
+        }
+        catch(err) {
+          console.warn(`Client#use(fetch) should be called immediatly after instanciation.`);
+        }
+      });
     }
+
     super({
       allowHalfOpen: true,
       objectMode: true,
     });
-    this._adapter = new Adapter(fetch, clientID, this);
-    this._stores = {};
-    this._actions = {};
-  }
 
-  within(lifespan) {
-    return {
-      Store: (path) => this.Store(lifespan, path),
-      Action: (path) => this.Action(lifespan, path),
-    };
-  }
-
-  fetch(path) {
-    return this._adapter.fetch(path);
-  }
-
-  Store(lifespan, path) {
-    if(this._stores[path] === void 0) {
-      this._stores[path] = {
-        engine: new Store.Engine(),
-        count: 0,
-      };
-      this._adapter.registerStore(path, this._stores[path].engine.createProducer());
-    }
-    this._stores[path].count = this._stores[path].count + 1;
-    lifespan.then(() => this._uncreateStore(path));
-    return this._stores[path].engine.createConsumer(lifespan);
-  }
-
-  _uncreateStore(path) {
-    if(__DEV__) {
-      this._stores.should.have.property(path);
-      this._stores[path].count.should.be.above(0);
-    }
-    this._stores[path].count = this._stores[path].count - 1;
-    if(this._stores[path].count === 0) {
-      this._adapter.unregisterStore(path);
-      delete this._stores[path];
-    }
-  }
-
-  Action(lifespan, path) {
-    if(this._actions[path] === void 0) {
-      let actionResolve;
-      const actionLifespan = new Promise((resolve) => actionResolve = resolve);
-      this._actions[path] = {
-        engine: new Action.Engine(),
-        count: 0,
-        resolve: actionResolve,
-      };
-      this._adapter.registerAction(path, this._actions[path].engine.createConsumer(actionLifespan));
-    }
-    this._actions[path].count = this._actions[path].count + 1;
-    lifespan.then(() => this._uncreateAction(path));
-    return this._actions[path].engine.createProducer();
-  }
-
-  _uncreateAction(path) {
-    if(__DEV__) {
-      this._actions.should.have.property(path);
-      this._actions[path].count.should.be.above(0);
-    }
-    this._actions[path].count = this._actions[path].count - 1;
-    if(this._actions[path].count === 0) {
-      this._adapter.unregisterAction(path);
-      this._actions[path].resolve();
-      delete this._actions[path];
-    }
-  }
-}
-
-class Adapter {
-  constructor(fetch, clientID, stream) {
-    if(__DEV__) {
-      fetch.should.be.a.Function;
-      clientID.should.be.a.String;
-      stream.should.be.an.instanceOf(Client);
-    }
     _.bindAll(this);
+
+    Object.assign(this, {
+      clientID,
+      lifespan: new Promise((resolve) => this.on('end', resolve)),
+      _stores: {},
+      _refetching: {},
+      _actions: {},
+      _fetch: null,
+    });
+
+    this.on('data', this._receive);
+  }
+
+  use(fetch) {
+    if(__DEV__) {
+      fetch.should.be.an.Function;
+    }
     this._fetch = fetch;
-    this._stream = stream;
-    this._clientID = as;
-    this._stores = {};
-    this._actions = {};
-    this._fetching = {};
-    this._stream.on('data', this.receive);
-    this.send(new Client.Events.ClientID({ clientID }));
+    return this;
   }
 
-  fetch(path, hash = null) {
+  Store(path, lifespan) {
     if(__DEV__) {
       path.should.be.a.String;
+      lifespan.should.have.property('then').which.is.a.Function;
     }
-    // should return a Promise for a remutable
-    return this._fetch(path, hash);
+    const { engine } = this._stores[path] || (() => {
+      this._send(new Client.Event.Subscribe({ path }));
+      const engine = new Store.Engine();
+      return this._stores[path] = {
+        engine,
+        producer: engine.createProducer(),
+        patches: {},
+        refetching: false,
+      };
+    })();
+    const consumer = engine.createConsumer();
+    consumer.lifespan.then(() => { // Stores without consumers are removed
+      if(engine.consumers === 0) {
+        engine.release();
+        this._send(new Client.Event.Unsbuscribe({ path }));
+        delete this._stores[path];
+      }
+    });
+    lifespan.then(consumer.release);
+    return consumer;
   }
 
-  registerStore(path, producer) {
+  Action(path, lifespan) {
     if(__DEV__) {
       path.should.be.a.String;
-      producer.should.be.an.instanceOf(Store.Producer);
-      this._stores.should.not.have.property(path);
+      lifespan.should.have.property('then').which.is.a.Function;
     }
-    this._stores[path] = producer;
-    this._patches[path] = {};
-    this._toServer.emit(Client.Events.Subscribe, path);
+    const { engine } = this._actions[path] || (() => {
+      const engine = new Action.Engine();
+      return this._actions[path] = {
+        engine,
+        consumer: engine.createConsumer()
+        .onDispatch((params) => this._send(new Client.Event.Dispatch({ path, params }))),
+      };
+    })();
+    const producer = engine.createProducer();
+    producer.lifespan.then(() => { // Actions without producers are removed
+      if(engine.producers === 0) {
+        engine.release();
+        delete this._actions[path];
+      }
+    });
+    lifespan.then(producer.release);
+    return producer;
   }
 
-  unregisterStore(path) {
+  _send(ev) {
     if(__DEV__) {
-      path.should.be.a.String;
-      this._stores.should.have.property(path);
+      ev.should.be.an.instanceOf(Client.Event);
     }
-    this._toServer.emit(Client.Events.Unsbuscribe, path);
-    delete this._patches[path];
-    delete this._stores[path];
+    this.write(ev);
   }
 
-  registerAction(path, consumer) {
+  _receive(ev) {
     if(__DEV__) {
-      path.should.be.a.String;
-      consumer.should.be.an.instanceOf(Action.Consumer);
-      this._actions.should.not.have.property(path);
+      ev.should.be.an.instanceOf(Server.Event);
     }
-    this._actions[path] = consumer;
-    consumer.onDispatch((params) => this._toServer.emit(Client.Events.Dispatch, path, params));
-  }
-
-  unregisterAction(path) {
-    if(__DEV__) {
-      path.should.be.a;String;
-      this._actions.should.have.property(path);
+    if(ev instanceof Server.Event.Update) {
+      return this._update(ev.path, ev.patch);
     }
-    delete this._actions[path];
-  }
-
-  receive(event) {
-    if(__DEV__) {
-      event.should.be.an.instanceof(Server.Events);
-    }
-    if(event instanceof Server.Events.Patch) {
-      return this.receivePatch(event.path, event.patch);
-    }
-    if(event instanceof Server.Events.Delete) {
-      return this.receiveDelete(event.path);
-    }
-    if(__DEV__) {
-      throw new Error(`Unknown Server Event: ${event}`);
+    if(ev instanceof Server.Event.Delete) {
+      return this._delete(ev.path);
     }
   }
 
-  send(event) {
-    if(__DEV__) {
-      event.should.be.an.instanceOf(Client.Events);
-    }
-    this._stream.write(event);
-  }
-
-  receivePatch(path, patch) {
+  _update(path, patch) {
     if(__DEV__) {
       path.should.be.a.String;
       patch.should.be.an.instanceOf(Patch);
@@ -188,88 +132,69 @@ class Adapter {
     if(this._stores[path] === void 0) { // dismiss if we are not interested anymore
       return;
     }
-    if(this._stores[path].remutableConsumer.hash === patch.source) { // if the patch match our current version, apply it
-      return this._stores[path].update(patch);
-    }
-    if(this._refetching[path] === void 0) { // if we are not already refetching a fresher version, do it
-      this.refetch(path, patch.target);
-    }
-    else { // if we are already fetching, store the patch for later use
-      this._patches[path][patch.source] = patch;
-    }
+    const { producer, patches, refetching } = this._stores[path];
+    const { hash } = producer.remutableConsumer;
+    const { source, target } = patch;
+    if(hash === source) { // if the patch applies to our current version, apply it now
+      return producer.update(patch);
+    } // we don't have a recent enough version, we need to refetch
+    if(!refetching) { // if we arent already refetching, request a newer version (atleast >= target)
+      return this._refetch(path, target);
+    } // if we are already refetching, store the patch for later
+    patches[source] = patch;
   }
 
-  receiveDelete(path) {
+  _delete(path) {
     if(__DEV__) {
       path.should.be.a.String;
     }
     if(this._stores[path] === void 0) {
       return;
     }
-    this._stores[path].delete();
+    const { producer } = this._stores[path];
+    producer.delete();
   }
 
-  refetch(path, hash) {
-    if(__DEV__) {
-      this._refetching.should.not.have.property(path);
-    }
-    if(this._stores[path] === void 0) {
-      return;
-    }
-    this._refetching[path] = this.fetch(path, hash)
-    .then((remutable) => this.receiveRefetch(path, remutable));
-  }
-
-  receiveRefetch(path, remutable) {
+  _refetch(path, target) {
     if(__DEV__) {
       path.should.be.a.String;
-      (remutable instanceof Remutable || remutable instanceof Remutable.Consumer).should.be.true;
-    }
-    if(this._stores[path] === void 0) {
-      return;
-    }
-    if(this._stores[path].remutableConsumer.version > remutable.version) {
-      return;
-    }
-    const diff = Patch.fromDiff(this._stores[path].remutableConsumer, remutable);
-    this._patches[path][diff.source] = diff;
-    this.applyAllAvailablePatches(path);
-  }
-
-  applyAllAvailablePatches(path) {
-    if(__DEV__) {
-      path.should.be.a.String;
+      target.should.be.a.String;
       this._stores.should.have.property(path);
     }
-    let hash = this._stores[path].remutableConsumer.hash;
-    let patch = null;
-    // recursively combine all matching patches into one big patch
-    while(this._patches[path][hash] !== void 0) {
-      const nextPatch = this._patches[path][hash];
-      delete this._patches[path][hash];
-      if(patch === null) {
-        patch = nextPatch;
-      }
-      else {
-        patch = Patch.combine(patch, nextPatch);
-      }
-      hash = patch.target;
+    this._stores[path].refetching = true;
+    this.fetch(path, target).then((remutable) => this._upgrade(path, remutable));
+  }
+
+  _upgrade(path, next) {
+    if(__DEV__) {
+      path.should.be.a.String;
+      (next instanceof Remutable || next instanceof Remutable.Consumer).should.be.true;
     }
-    // delete patches to older versions
-    const version = patch.t.v;
-    _.each(this._patches[path], (patch, hash) => {
-      if(patch.t.v < version) {
-        delete this._patches[path][hash];
+    if(this._stores[path] === void 0) { // not interested anymore
+      return;
+    }
+    const { producer, patches } = this._stores[path];
+    const prev = producer.remutableConsumer;
+    if(prev.version > next.version) { // we already have a more recent version
+      return;
+    }
+    // squash patches to create a single patch
+    let squash = Patch.fromDiff(prev, next);
+    while(patches[squash.target] !== void 0) {
+      squash = Patch.combine(squash, patches[squash.target]);
+    }
+    const version = squash.t.v;
+    // clean old patches
+    _.each((patches), ({ t }, source) => {
+      if(t.v <= version) {
+        delete patches[source];
       }
     });
-    if(__DEV__) {
-      _.size(this._patches[path]).should.be.exactly(0);
-    }
-    this._stores[path].update(patch);
+    producer.update(squash);
   }
 }
 
-class Events {
+class Event {
   constructor() {
     this._s = null;
   }
@@ -291,26 +216,30 @@ class Events {
 
   static parse(json) {
     const { t, p } = JSON.parse(json);
-    return new Events._shortName[t](p);
+    if(__DEV__) {
+      Event._shortName.should.have.ownProperty(json);
+    }
+    return new Event._shortName[t](p);
   }
 
-  static _register(shortName, longName, constructor) {
+  static _register(shortName, longName, Ctor) {
     if(__DEV__) {
       shortName.should.be.a.String;
       shortName.length.should.be.exactly(1);
       longName.should.be.a.String;
-      Events._shortName.should.not.have.property(shortName);
-      Events.should.not.have.property(longName);
+      Event._shortName.should.not.have.property(shortName);
+      Event.should.not.have.property(longName);
+      Ctor.should.be.a.Function;
     }
-    Object.assign(Events, { [longName]: constructor });
-    Object.assign(Events._shortName, { [shortName]: constructor });
-    Object.assign(constructor.prototype, { t: () => shortName });
+    Event[longName] = Ctor;
+    Event._shortName[shortName] = Ctor;
+    Ctor.prototype.t = shortName;
   }
 }
 
-Object.assign(Events, { _shortName: {} });
+Event._shortName = {};
 
-class ClientID extends Events {
+class ClientID extends Event {
   constructor({ clientID }) {
     if(__DEV__) {
       clientID.should.be.a.String;
@@ -324,9 +253,7 @@ class ClientID extends Events {
   }
 }
 
-Events._register('c', 'ClientID', ClientID);
-
-class Subscribe extends Events {
+class Subscribe extends Event {
   constructor({ path }) {
     if(__DEV__) {
       path.should.be.a.String;
@@ -340,9 +267,7 @@ class Subscribe extends Events {
   }
 }
 
-Events._register('s', 'Subscribe', Subscribe);
-
-class Unsbuscribe extends Events {
+class Unsbuscribe extends Event {
   constructor({ path }) {
     if(__DEV__) {
       path.should.be.a.String;
@@ -356,9 +281,8 @@ class Unsbuscribe extends Events {
   }
 }
 
-Events._register('u', 'Unsbuscribe', Unsbuscribe);
 
-class Dispatch extends Events {
+class Dispatch extends Event {
   constructor({ action, params }) {
     if(__DEV__) {
       action.should.be.a.String;
@@ -376,10 +300,11 @@ class Dispatch extends Events {
   }
 }
 
-Events._register('d', 'Dispatch', Dispatch);
+Event._register('c', 'ClientID', ClientID);
+Event._register('s', 'Subscribe', Subscribe);
+Event._register('u', 'Unsbuscribe', Unsbuscribe);
+Event._register('d', 'Dispatch', Dispatch);
 
-_Adapter = Adapter;
-
-Object.assign(Client, { Adapter, Events });
+Client.Event = Event;
 
 module.exports = Client;
