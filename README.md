@@ -6,20 +6,25 @@ Nexus Flux
 
 ```js
 {
-  getFlux() {
-    return this.props.flux.within(this.lifespan);
+  get lifespan() {
+    if(!this._lifespan) {
+        this._lifespan = new Promise((resolve) => this._unmount = resolve);
+    }
+    return this._lifespan;
   }
 
   componentWillMount() {
-    const lifespan = new Promise((resolve) => this._unmount = resolve);
-    this.getFlux().Store('/todo-list')
+    const flux = this.props.flux.within(this.lifespan);
+    flux.Store('/todo-list')
     .onChange((todoList) => this.setState({ todoList }))
     .onDelete(() => this.setState({ todoList: undefined }));
     this.removeItem = flux.Action('/remove-item').dispatch;
   }
 
   componentWillUnmount() {
-    this._unmount();
+    if(this._unmount) {
+      this._unmount();
+    }
   }
 
   render() {
