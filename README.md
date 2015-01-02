@@ -66,7 +66,7 @@ function publish(path, value) {
 // Simply plug the event streams
 const client = new Client(fetch);
 const server = new Server(publish);
-const link = server.addClient();
+const link = server.createLink();
 client.pipe(link);
 link.pipe(client);
 
