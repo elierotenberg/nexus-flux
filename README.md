@@ -1,12 +1,39 @@
 Nexus Flux
 ==========
 
+Abstract Nexus Flux Diagram
 ```
-      +-> Action.dispatch -+ +-> Client.Events --+ +-> Action.onDispatch -+
-      |                    | |      Adapter      | |                      |
-User (React View)       Flux Client           Flux Server      User (Appstate logic)
-      |                    | |      Adapter      | |                      |
-      +- Store.onChange <--+ +-- Server.Events <-+ +-- Store.update ------+
+    +-> Action.dispatch ---+--> Client.Events ---+--> Action.onDispatch -+
+    |                                                                    |
+Component logic         Adapter               Adapter               Global logic
+    |                                                                    |
+    +-- Store.onUpdate  <---+-- Server.Events <--+--- Store.update ------+
+```
+
+
+Local Nexus Flux Diagram
+```
+Component #1 <---------+
+                       |
+Component #2 <---------+---> Global logic
+                       |
+Component #3 <---------+
+
+```
+
+Over the wire Nexus Flux Diagram
+```
+Component #A1 <---+
+                  |
+Component #A2 <---+-- Client #A Adapter -+
+                  |                      |
+Component #A3 <---+                      |
+                                         +-> Global logic
+Component #B1 <---+                      |
+                  |                      |
+Component #B2 <---+-- Client #B Adapter -+
+                  |
+Component #B3 <---+
 ```
 
 #### Client usage example (in a React view)
