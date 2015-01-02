@@ -6,11 +6,11 @@ Nexus Flux
 
 ```js
 {
-  get lifespan() {
-    if(!this._lifespan) {
-        this._lifespan = new Promise((resolve) => this._unmount = resolve);
-    }
-    return this._lifespan;
+  getInitialState() {
+    this.lifespan = new Promise((resolve) => this._lifespan = resolve);
+    return {
+      todoList: this.props.flux.Store('/todo-list').value,
+    };
   }
 
   componentWillMount() {
@@ -22,9 +22,7 @@ Nexus Flux
   }
 
   componentWillUnmount() {
-    if(this._unmount) {
-      this._unmount();
-    }
+    this._lifespan();
   }
 
   render() {
