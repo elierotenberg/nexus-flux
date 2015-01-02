@@ -13,11 +13,11 @@ Component logic         Adapter               Adapter               Global logic
 
 Local Nexus Flux Diagram
 ```
-Component #1 <---------+
-                       |
-Component #2 <---------+---> Global logic
-                       |
-Component #3 <---------+
+Component #1 <---+
+                 |
+Component #2 <---+-- Stream.Duplex Adapter -> Global logic
+                 |
+Component #3 <---+
 
 ```
 
@@ -25,14 +25,14 @@ Over the wire Nexus Flux Diagram
 ```
 Component #A1 <---+
                   |
-Component #A2 <---+-- Client #A Adapter -+
-                  |                      |
+Component #A2 <---+-- Websocket Adapter -+
+                  |       Client A       |
 Component #A3 <---+                      |
                                          +-> Global logic
 Component #B1 <---+                      |
                   |                      |
-Component #B2 <---+-- Client #B Adapter -+
-                  |
+Component #B2 <---+-- Websocket Adapter -+
+                  |       Client B
 Component #B3 <---+
 ```
 
