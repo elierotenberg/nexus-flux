@@ -7,7 +7,7 @@ Abstract Nexus Flux Diagram
     |                                                                    |
 Component logic         Adapter               Adapter               Global logic
     |                                                                    |
-    +-- Store.onUpdate  <---+-- Server.Events <--+--- Store.update ------+
+    +-- Store.onUpdate  <--+--- Server.Events <--+--- Store.update ------+
 ```
 
 
