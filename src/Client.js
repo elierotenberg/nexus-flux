@@ -1,19 +1,31 @@
-const Virtual = require('virtual');
 const Remutable = require('remutable');
 const { Patch } = Remutable;
+const asap = require('asap');
 const Store = require('./Store');
 const Action = require('./Action');
+const Server = require('./Server');
 
 let _Adapter;
 
+const INT_MAX = 9007199254740992;
+
 class Client {
-  constructor(adapter) {
+  constructor(fetch, { as, in, out, }) {
+    as = as || `Client${_.random(1, INT_MAX - 1)}`;
     if(__DEV__) {
-      adapter.should.be.an.instanceOf(_Adapter);
+      fetch.should.be.a.Function;
+      as.should.be.a.String;
+      in.should.have.property('on').which.is.a.Function;
+      out.should.have.property('emit').which.is.a.Function;
     }
-    this._adapter = adapter;
+    this._adapter = new Adapter(fetch, { in, out, as });
     this._stores = {};
     this._actions = {};
+    if(__DEV__) {
+      asap(() => {
+        this._adapter.should.be.an.instanceOf(_Adapter);
+      });
+    }
   }
 
   within(lifespan) {
@@ -82,26 +94,35 @@ class Client {
   }
 }
 
-
-// fetch(path, hash): Promise(Remutable)
-// where the promised remutable should be at least as recent as hash
-
-// subscribe(path): void 0
-// fire & forget subscribe
-
-// unsubscribe(path): void 0
-// fire & forget unsubscribe
-
-// dispatch(path, params): void 0
-// fire & forget dispatch
-const _AbstractAdapter = Virtual('fetch', 'subscribe', 'unsubscribe', 'dispatch');
-
-class Adapter extends _AbstractAdapter {
-  constructor() {
-    super();
+class Adapter {
+  constructor(fetch, { as, in, out }) {
+    if(__DEV__) {
+      fetch.should.be.a.Function;
+      as.should.be.a.String;
+      in.should.have.property('on').which.is.a.Function;
+      out.should.have.property('emit').which.is.a.Function;
+    }
+    _.bindAll(this);
+    this._fetch = fetch;
+    this._fromServer = in;
+    this._toServer = out;
+    this._clientID = as;
     this._stores = {};
     this._actions = {};
     this._fetching = {};
+    this._fromServer
+    .on(Server.Events.Patch, this.receivePatch)
+    .on(Server.Events.Delete, this.receiveDelete);
+    this._toServer
+    .emit(Client.Events.ClientID, this._clientID);
+  }
+
+  fetch(path, hash = null) {
+    if(__DEV__) {
+      path.should.be.a.String;
+    }
+    // should return a Promise for a remutable
+    return this._fetch(path, hash);
   }
 
   registerStore(path, producer) {
@@ -111,7 +132,8 @@ class Adapter extends _AbstractAdapter {
       this._stores.should.not.have.property(path);
     }
     this._stores[path] = producer;
-    this.subscribe(path);
+    this._patches[path] = {};
+    this._toServer.emit(Client.Events.Subscribe, path);
   }
 
   unregisterStore(path) {
@@ -119,7 +141,8 @@ class Adapter extends _AbstractAdapter {
       path.should.be.a.String;
       this._stores.should.have.property(path);
     }
-    this.unsubscribe(path);
+    this._toServer.emit(Client.Events.Unsbuscribe, path);
+    delete this._patches[path];
     delete this._stores[path];
   }
 
@@ -130,7 +153,7 @@ class Adapter extends _AbstractAdapter {
       this._actions.should.not.have.property(path);
     }
     this._actions[path] = consumer;
-    consumer.onDispatch((params) => this.dispatch(path, params));
+    consumer.onDispatch((params) => this._toServer.emit(Client.Events.Dispatch, path, params));
   }
 
   unregisterAction(path) {
@@ -146,11 +169,8 @@ class Adapter extends _AbstractAdapter {
       path.should.be.a.String;
       patch.should.be.an.instanceOf(Patch);
     }
-    if(this._stores[path] === void 0) { // dismiss if we are not interested anymote
+    if(this._stores[path] === void 0) { // dismiss if we are not interested anymore
       return;
-    }
-    if(this._patches[path] === void 0) {
-      this._patches[path] = {};
     }
     if(this._stores[path].remutableConsumer.hash === patch.source) { // if the patch match our current version, apply it
       return this._stores[path].update(patch);
@@ -161,6 +181,16 @@ class Adapter extends _AbstractAdapter {
     else { // if we are already fetching, store the patch for later use
       this._patches[path][patch.source] = patch;
     }
+  }
+
+  receiveDelete(path) {
+    if(__DEV__) {
+      path.should.be.a.String;
+    }
+    if(this._stores[path] === void 0) {
+      return;
+    }
+    this._stores[path].delete();
   }
 
   refetch(path, hash) {
@@ -226,5 +256,11 @@ class Adapter extends _AbstractAdapter {
 _Adapter = Adapter;
 
 Client.Adapter = Adapter;
+Client.Events = {
+  ClientID: 'c',
+  Subscribe: 's',
+  Unsbuscribe: 'u',
+  Dispatch: 'd',
+};
 
 module.exports = Client;

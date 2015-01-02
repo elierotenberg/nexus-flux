@@ -1,17 +1,5 @@
 "use strict";
 
-var _inherits = function (child, parent) {
-  child.prototype = Object.create(parent && parent.prototype, {
-    constructor: {
-      value: child,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    }
-  });
-  if (parent) child.__proto__ = parent;
-};
-
 require("6to5/polyfill");
 var _ = require("lodash");
 var should = require("should");
@@ -23,11 +11,11 @@ var __NODE__ = !__BROWSER__;
 if (__DEV__) {
   Promise.longStackTraces();
 }
-var Virtual = require("virtual");
 var Remutable = require("remutable");
 var Patch = Remutable.Patch;
 var Store = require("./Store");
 var Action = require("./Action");
+var Server = require("./Server");
 
 var _Adapter = undefined;
 
@@ -117,164 +105,164 @@ Client.prototype._uncreateAction = function (path) {
   }
 };
 
+var Adapter = function Adapter(fetch, fromServer, toServer) {
+  if (__DEV__) {
+    fetch.should.be.a.Function;
+    fromServer.should.have.property("addListener").which.is.a.Function;
+    fromServer.should.have.property("removeListener").which.is.a.Function;
+    toServer.should.have.property("emit").which.is.a.Function;
+  }
+  _.bindAll(this);
+  this._fetch = fetch;
+  this._fromServer = fromServer;
+  this._toServer = toServer;
+  this._stores = {};
+  this._actions = {};
+  this._fetching = {};
+  this._fromServer.on(Server.Events.Patch, this.receivePatch).on(Server.Events.Delete, this.receiveDelete);
+};
 
+Adapter.prototype.registerStore = function (path, producer) {
+  if (__DEV__) {
+    path.should.be.a.String;
+    producer.should.be.an.instanceOf(Store.Producer);
+    this._stores.should.not.have.property(path);
+  }
+  this._stores[path] = producer;
+  this._patches[path] = {};
+  this._toServer.emit(Client.Events.Subscribe, path);
+};
 
+Adapter.prototype.unregisterStore = function (path) {
+  if (__DEV__) {
+    path.should.be.a.String;
+    this._stores.should.have.property(path);
+  }
+  this._toServer.emit(Client.Events.Unsbuscribe, path);
+  delete this._patches[path];
+  delete this._stores[path];
+};
 
-// fetch(path, hash): Promise(Remutable)
-// where the promised remutable should be at least as recent as hash
+Adapter.prototype.registerAction = function (path, consumer) {
+  var _this4 = this;
+  if (__DEV__) {
+    path.should.be.a.String;
+    consumer.should.be.an.instanceOf(Action.Consumer);
+    this._actions.should.not.have.property(path);
+  }
+  this._actions[path] = consumer;
+  consumer.onDispatch(function (params) {
+    return _this4._toServer.emit(Client.Events.Dispatch, path, params);
+  });
+};
 
-// subscribe(path): void 0
-// fire & forget subscribe
+Adapter.prototype.unregisterAction = function (path) {
+  if (__DEV__) {
+    path.should.be.a;String;
+    this._actions.should.have.property(path);
+  }
+  delete this._actions[path];
+};
 
-// unsubscribe(path): void 0
-// fire & forget unsubscribe
+Adapter.prototype.receivePatch = function (path, patch) {
+  if (__DEV__) {
+    path.should.be.a.String;
+    patch.should.be.an.instanceOf(Patch);
+  }
+  if (this._stores[path] === void 0) {
+    // dismiss if we are not interested anymore
+    return;
+  }
+  if (this._stores[path].remutableConsumer.hash === patch.source) {
+    // if the patch match our current version, apply it
+    return this._stores[path].update(patch);
+  }
+  if (this._refetching[path] === void 0) {
+    // if we are not already refetching a fresher version, do it
+    this.refetch(path, patch.target);
+  } else {
+    // if we are already fetching, store the patch for later use
+    this._patches[path][patch.source] = patch;
+  }
+};
 
-// dispatch(path, params): void 0
-// fire & forget dispatch
-var _AbstractAdapter = Virtual("fetch", "subscribe", "unsubscribe", "dispatch");
+Adapter.prototype.receiveDelete = function (path) {
+  if (__DEV__) {
+    path.should.be.a.String;
+  }
+  if (this._stores[path] === void 0) {
+    return;
+  }
+  this._stores[path]["delete"]();
+};
 
-var Adapter = (function () {
-  var _AbstractAdapter2 = _AbstractAdapter;
-  var Adapter = function Adapter() {
-    _AbstractAdapter2.call(this);
-    this._stores = {};
-    this._actions = {};
-    this._fetching = {};
-  };
+Adapter.prototype.refetch = function (path, hash) {
+  var _this5 = this;
+  if (__DEV__) {
+    this._refetching.should.not.have.property(path);
+  }
+  if (this._stores[path] === void 0) {
+    return;
+  }
+  this._refetching[path] = this._fetch(path, hash).then(function (remutable) {
+    return _this5.receiveRefetch(path, remutable);
+  });
+};
 
-  _inherits(Adapter, _AbstractAdapter2);
+Adapter.prototype.receiveRefetch = function (path, remutable) {
+  if (__DEV__) {
+    path.should.be.a.String;
+    (remutable instanceof Remutable || remutable instanceof Remutable.Consumer).should.be.true;
+  }
+  if (this._stores[path] === void 0) {
+    return;
+  }
+  if (this._stores[path].remutableConsumer.version > remutable.version) {
+    return;
+  }
+  var diff = Patch.fromDiff(this._stores[path].remutableConsumer, remutable);
+  this._patches[path][diff.source] = diff;
+  this.applyAllAvailablePatches(path);
+};
 
-  Adapter.prototype.registerStore = function (path, producer) {
-    if (__DEV__) {
-      path.should.be.a.String;
-      producer.should.be.an.instanceOf(Store.Producer);
-      this._stores.should.not.have.property(path);
-    }
-    this._stores[path] = producer;
-    this.subscribe(path);
-  };
-
-  Adapter.prototype.unregisterStore = function (path) {
-    if (__DEV__) {
-      path.should.be.a.String;
-      this._stores.should.have.property(path);
-    }
-    this.unsubscribe(path);
-    delete this._stores[path];
-  };
-
-  Adapter.prototype.registerAction = function (path, consumer) {
-    var _this4 = this;
-    if (__DEV__) {
-      path.should.be.a.String;
-      consumer.should.be.an.instanceOf(Action.Consumer);
-      this._actions.should.not.have.property(path);
-    }
-    this._actions[path] = consumer;
-    consumer.onDispatch(function (params) {
-      return _this4.dispatch(path, params);
-    });
-  };
-
-  Adapter.prototype.unregisterAction = function (path) {
-    if (__DEV__) {
-      path.should.be.a;String;
-      this._actions.should.have.property(path);
-    }
-    delete this._actions[path];
-  };
-
-  Adapter.prototype.receivePatch = function (path, patch) {
-    if (__DEV__) {
-      path.should.be.a.String;
-      patch.should.be.an.instanceOf(Patch);
-    }
-    if (this._stores[path] === void 0) {
-      // dismiss if we are not interested anymote
-      return;
-    }
-    if (this._patches[path] === void 0) {
-      this._patches[path] = {};
-    }
-    if (this._stores[path].remutableConsumer.hash === patch.source) {
-      // if the patch match our current version, apply it
-      return this._stores[path].update(patch);
-    }
-    if (this._refetching[path] === void 0) {
-      // if we are not already refetching a fresher version, do it
-      this.refetch(path, patch.target);
+Adapter.prototype.applyAllAvailablePatches = function (path) {
+  var _this6 = this;
+  if (__DEV__) {
+    path.should.be.a.String;
+    this._stores.should.have.property(path);
+  }
+  var hash = this._stores[path].remutableConsumer.hash;
+  var patch = null;
+  // recursively combine all matching patches into one big patch
+  while (this._patches[path][hash] !== void 0) {
+    var nextPatch = this._patches[path][hash];
+    delete this._patches[path][hash];
+    if (patch === null) {
+      patch = nextPatch;
     } else {
-      // if we are already fetching, store the patch for later use
-      this._patches[path][patch.source] = patch;
+      patch = Patch.combine(patch, nextPatch);
     }
-  };
-
-  Adapter.prototype.refetch = function (path, hash) {
-    var _this5 = this;
-    if (__DEV__) {
-      this._refetching.should.not.have.property(path);
+    hash = patch.target;
+  }
+  // delete patches to older versions
+  var version = patch.t.v;
+  _.each(this._patches[path], function (patch, hash) {
+    if (patch.t.v < version) {
+      delete _this6._patches[path][hash];
     }
-    if (this._stores[path] === void 0) {
-      return;
-    }
-    this._refetching[path] = this.fetch(path, hash).then(function (remutable) {
-      return _this5.receiveRefetch(path, remutable);
-    });
-  };
-
-  Adapter.prototype.receiveRefetch = function (path, remutable) {
-    if (__DEV__) {
-      path.should.be.a.String;
-      (remutable instanceof Remutable || remutable instanceof Remutable.Consumer).should.be.true;
-    }
-    if (this._stores[path] === void 0) {
-      return;
-    }
-    if (this._stores[path].remutableConsumer.version > remutable.version) {
-      return;
-    }
-    var diff = Patch.fromDiff(this._stores[path].remutableConsumer, remutable);
-    this._patches[path][diff.source] = diff;
-    this.applyAllAvailablePatches(path);
-  };
-
-  Adapter.prototype.applyAllAvailablePatches = function (path) {
-    var _this6 = this;
-    if (__DEV__) {
-      path.should.be.a.String;
-      this._stores.should.have.property(path);
-    }
-    var hash = this._stores[path].remutableConsumer.hash;
-    var patch = null;
-    // recursively combine all matching patches into one big patch
-    while (this._patches[path][hash] !== void 0) {
-      var nextPatch = this._patches[path][hash];
-      delete this._patches[path][hash];
-      if (patch === null) {
-        patch = nextPatch;
-      } else {
-        patch = Patch.combine(patch, nextPatch);
-      }
-      hash = patch.target;
-    }
-    // delete patches to older versions
-    var version = patch.t.v;
-    _.each(this._patches[path], function (patch, hash) {
-      if (patch.t.v < version) {
-        delete _this6._patches[path][hash];
-      }
-    });
-    if (__DEV__) {
-      _.size(this._patches[path]).should.be.exactly(0);
-    }
-    this._stores[path].update(patch);
-  };
-
-  return Adapter;
-})();
+  });
+  if (__DEV__) {
+    _.size(this._patches[path]).should.be.exactly(0);
+  }
+  this._stores[path].update(patch);
+};
 
 _Adapter = Adapter;
 
 Client.Adapter = Adapter;
+Client.Events = {
+  Subscribe: "s",
+  Unsbuscribe: "u",
+  Dispatch: "d" };
 
 module.exports = Client;

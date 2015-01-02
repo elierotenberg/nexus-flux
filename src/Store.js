@@ -53,6 +53,10 @@ class Consumer {
     }
   }
 
+  get value() {
+    return this.remutableConsumer.head;
+  }
+
   onChange(fn) {
     if(__DEV__) {
       fn.should.be.a.Function;
