@@ -144,3 +144,24 @@ setTimeout(() => {
   link.end();
 }, 10000);
 ```
+
+#### Implementation example: flux over the wire
+
+```js
+// Client side
+const adapter = new Nexus.Client('http://localhost:8080');
+const client = new Client().use(adapter.fetch);
+client.pipe(adapter);
+adapter.pipe(client);
+```
+
+```js
+/// Server side
+const adapter = new Nexus.Server(8080);
+const server = new Server().use(adapter.publish);
+adapter.onConnection((client) => {
+  const link = server.createLink();
+  link.pipe(client);
+  client.pipe(link);
+});
+```

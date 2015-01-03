@@ -1,6 +1,8 @@
 const { Duplex } = require('stream');
 const through = require('through2');
 const asap = require('asap');
+const Remutable = require('remutable');
+const { Patch } = Remutable;
 
 const Client = require('./Client');
 
@@ -38,7 +40,7 @@ class Server extends Duplex {
     const subscriptions = {};
     const clientID = null;
 
-    link.pipe(through.obj(function(ev, enc, done) {
+    link.pipe(through.obj((ev, enc, done) => { // filter & pipe client events to the server
       if(__DEV__) {
         ev.should.be.an.instanceOf(Client.Event);
       }
@@ -71,7 +73,7 @@ class Server extends Duplex {
     }))
     .pipe(this);
 
-    this.pipe(through.obj(function(ev)) {
+    this.pipe(through.obj((ev, enc, done) => { // filter & pipe server events to the client
       if(__DEV__) {
         ev.should.be.an.instanceOf(Server.Event);
       }
@@ -163,56 +165,97 @@ class Server extends Duplex {
 
 class Event {
   constructor() {
-    this._s = null;
-  }
-
-  get t() {
-    return null;
-  }
-
-  get p() {
-    return {};
-  }
-
-  stringify() {
-    if(this._s === null) {
-      this._s = JSON.stringify({ t: this.t, p: this.p });
-    }
-    return this._s;
-  }
-
-  static parse(json) {
-    const { t, p } = JSON.parse(json);
     if(__DEV__) {
-      Event._shortName.should.have.ownProperty(json);
+      this.should.have.property('toJS').which.is.a.Function;
+      this.constructor.should.have.property('fromJS').which.is.a.Function;
     }
-    return new Event._shortName[t](p);
+    Object.assign(this, {
+      _json: null,
+      _js: null,
+    });
   }
 
-  static _register(shortName, longName, Ctor) {
-    if(__DEV__) {
-      shortName.should.be.a.String;
-      shortName.length.should.be.exactly(1);
-      longName.should.be.a.String;
-      Event._shortName.should.not.have.property(shortName);
-      Event.should.not.have.property(longName);
-      Ctor.should.be.a.Function;
+  toJS() {
+    if(this._js === null) {
+      this._js = {
+        t: this.constructor.t(),
+        j: this._toJS(),
+      };
     }
-    Event[longName] = Ctor;
-    Event._shortName[shortName] = Ctor;
-    Ctor.prototype.t = shortName;
+    return this._js;
+  }
+
+  toJSON() {
+    if(this._json === null) {
+      this._json = JSON.stringify(this.toJS());
+    }
+    return this._json;
+  }
+
+  static fromJSON(json) {
+    const { t, j } = JSON.parse(json);
+    return Events._[t].fromJS(j);
   }
 }
-
-Event._shortName = {};
 
 class Update extends Event {
-  constructor({ path, patch }) {
+  constructor(path, patch) {
     if(__DEV__) {
       path.should.be.a.String;
-      patch.should.be.an.instanceOf(patch);
+      patch.should.be.an.instanceOf(Patch);
     }
+    super();
+    Object.assign(this, { path, patch });
+  }
+
+  _toJS() {
+    return {
+      p: this.path,
+      u: this.patch.toJS(),
+    };
+  }
+
+  static t() {
+    return 'u';
+  }
+
+  static fromJS({ p, u }) {
+    if(__DEV__) {
+      p.should.be.a.String;
+      u.should.be.an.Object;
+    }
+    return new Update(p, Patch.fromJS(u));
   }
 }
+
+class Delete extends Event {
+  constructor(path) {
+    if(__DEV__) {
+      path.should.be.a.String;
+    }
+    super();
+    Object.assign(this, { path });
+  }
+
+  _toJS() {
+    return { p: this.patch };
+  }
+
+  static t() {
+    return 'd';
+  }
+
+  static fromJS({ p }) {
+    if(__DEV__) {
+      p.should.be.a.String;
+    }
+    return new Delete(p);
+  }
+}
+
+Events.Update = Events._[Update.t()] = Update;
+Events.Delete = Events._[Event.t()] = Delete;
+
+Server.Events = Events;
 
 module.exports = Server;

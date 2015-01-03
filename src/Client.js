@@ -239,81 +239,145 @@ class Event {
   }
 }
 
-Event._shortName = {};
+class Event {
+  constructor() {
+    if(__DEV__) {
+      this.should.have.property('toJS').which.is.a.Function;
+      this.constructor.should.have.property('fromJS').which.is.a.Function;
+    }
+    Object.assign(this, {
+      _json: null,
+      _js: null,
+    });
+  }
+
+  toJS() {
+    if(this._js === null) {
+      this._js = {
+        t: this.constructor.t(),
+        j: this._toJS(),
+      };
+    }
+    return this._js;
+  }
+
+  toJSON() {
+    if(this._json === null) {
+      this._json = JSON.stringify(this.toJS());
+    }
+    return this._json;
+  }
+
+  static fromJSON(json) {
+    const { t, j } = JSON.parse(json);
+    return Events._[t].fromJS(j);
+  }
+}
 
 class Open extends Event {
-  constructor({ clientID }) {
+  constructor(clientID) {
     if(__DEV__) {
       clientID.should.be.a.String;
     }
-    super();
-    this.p = { clientID };
+    Object.assign(this, { clientID });
   }
 
-  get clientID() {
-    return this.p.clientID;
+  _toJS() {
+    return { c: this.clientID };
+  }
+
+  static t() {
+    return 'o';
+  }
+
+  static fromJS({ c }) {
+    return new Open(c);
   }
 }
 
 class Close extends Event {
-  constructor() {
-    super();
-    this.p = {};
+  _toJS() {
+    return {};
+  }
+
+  static t() {
+    return 'c';
+  }
+
+  static fromJS() {
+    return new Close();
   }
 }
 
 class Subscribe extends Event {
-  constructor({ path }) {
+  constructor(path) {
     if(__DEV__) {
       path.should.be.a.String;
     }
-    super();
-    this.p = { path };
+    Object.assign(this, { path });
   }
 
-  get path() {
-    return this.p.path;
+  _toJS() {
+    return { p: this.patch };
+  }
+
+  static t() {
+    return 's';
+  }
+
+  static fromJS({ p }) {
+    return new Subscribe(p);
   }
 }
 
 class Unsbuscribe extends Event {
-  constructor({ path }) {
+  constructor(path) {
     if(__DEV__) {
       path.should.be.a.String;
     }
-    super();
-    this.p = { path };
+    Object.assign(this, { path });
   }
 
-  get path() {
-    return this.p.path;
+  _toJS() {
+    return { p: this.patch };
+  }
+
+  static t() {
+    return 'u';
+  }
+
+  static fromJS({ p }) {
+    return new Unsbuscribe(p);
   }
 }
-
 
 class Dispatch extends Event {
-  constructor({ action, params }) {
+  constructor(path, params) {
     if(__DEV__) {
-      action.should.be.a.String;
+      path.should.be.a.String;
+      params.should.be.an.Object;
     }
-    super();
-    this.p = { action, params };
+    Object.assign(this, { path, params });
   }
 
-  get action() {
-    return this.p.action;
+  _toJS() {
+    return { p: this.path, a: params };
   }
 
-  get params() {
-    return this.p.params;
+  static t() {
+    return 'd';
+  }
+
+  static fromJS({ p, a }) {
+    return new Dispatch(p, a);
   }
 }
 
-Event._register('o', 'Open', Open);
-Event._register('c', 'Close', Close);
-Event._register('s', 'Subscribe', Subscribe);
-Event._register('u', 'Unsbuscribe', Unsbuscribe);
-Event._register('d', 'Dispatch', Dispatch);
+Event.Open        = Event._[Open.t()]         = Open;
+Event.Close       = Event._[Close.t()]        = Close;
+Event.Subscribe   = Event._[Subscribe.t()]    = Subscribe;
+Event.Unsbuscribe = Event._[Unsbuscribe.t()]  = Unsbuscribe;
+Event.Dispatch    = Event._[Dispatch.t()]     = Dispatch;
 
 Client.Event = Event;
 
