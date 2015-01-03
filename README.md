@@ -108,7 +108,7 @@ removeItem.onDispatch((clientID, { name }) => {
 
 This implements the orthodox Flux for in-app data propagation.
 
-You can check the adapter from [https://github.com/elierotenberg/nexus-flux/tree/master/src/LocalAdapter.js](its source), which is trivial.
+You can check the adapter from [its source](https://github.com/elierotenberg/nexus-flux/tree/master/src/LocalAdapter.js), which is trivial.
 
 ```js
 const buffer = {};
@@ -139,7 +139,7 @@ const server = new Server(new SocketIOAdapter.Server({ port: 8080, maxClients: 5
 
 Defer expensive app-state data calculations off the main thread to avoid blocking UI.
 
-You can check the adapter from [https://github.com/elierotenberg/nexus-flux/tree/master/src/WebWorkerAdapter.js](its source). No black magic.
+You can check the adapter from [its source](https://github.com/elierotenberg/nexus-flux/tree/master/src/WebWorkerAdapter.js). No black magic.
 
 ```js
 // Client side: runs in the main thread
