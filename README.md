@@ -160,7 +160,7 @@ adapter.pipe(client);
 const adapter = new Nexus.Server(8080);
 const server = new Server().use(adapter.publish);
 adapter.onConnection((client) => {
-  const link = server.createLink();
+  const link = server.Link();
   link.pipe(client);
   client.pipe(link);
 });
