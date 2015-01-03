@@ -130,7 +130,7 @@ const client = new Client(new SocketIOAdapter.Client('http://localhost:8080'));
 ```
 
 ```js
-// Server side: runs in a node process (which may or may not be the same process as the client)
+// Server side: runs in a node process, which may or may not be the same process
 // Clients are automatically accepted
 const server = new Server(new SocketIOAdapter.Server({ port: 8080, maxClients: 50000 });
 ```
@@ -179,7 +179,7 @@ const client = new Client(new NodeAdapter.Client('http://192.168.0.1:8080'));
 ```
 
 ```js
-// Server side: runs in a node process, which may or may not be the same process as the client
+// Server side: runs in a node process, which may or may not be the same process
 // Clients are automatically accepted
 const server = new Server(new NodeAdapter.Server({ port: 8080 }));
 ```
