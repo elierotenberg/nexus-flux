@@ -104,7 +104,7 @@ removeItem.onDispatch((clientID, { name }) => {
 });
 ```
 
-#### Implementation example: local flux
+#### Implementation example: hand-crafted local flux
 
 ```js
 
@@ -117,11 +117,7 @@ const server = new Server().use((path, value) => data[path] = value);
 const client = new Client().use((path) => Promise.resolve(data[path].head));
 
 // instanciate a link (representation of a client from the server)
-const link = server.Link();
-
-// attach both ends together
-client.pipe(link); // client output goes into link input
-link.pipe(client); // link output goes into client input
+const link = server.Link(client);
 
 const todoList = server.Store('/todo-list');
 const removeItem = server.Action('/remove-item');
@@ -145,11 +141,13 @@ setTimeout(() => {
 }, 10000);
 ```
 
-#### Implementation example: flux over the wire
+#### Implementation example: flux over the wire using nexus-flux-socket.io
+
+Share global server-side app state across all connected clients.
 
 ```js
 // Client side
-const adapter = new Nexus.Client('http://localhost:8080');
+const adapter = new SocketIOAdapter.Client('http://localhost:8080');
 const client = new Client().use(adapter.fetch);
 client.pipe(adapter);
 adapter.pipe(client);
@@ -157,11 +155,66 @@ adapter.pipe(client);
 
 ```js
 /// Server side
-const adapter = new Nexus.Server(8080);
+const adapter = new SocketIOAdapter.Server({ port: 8080, maxClients: 50000 });
 const server = new Server().use(adapter.publish);
-adapter.onConnection((client) => {
-  const link = server.Link();
-  link.pipe(client);
-  client.pipe(link);
-});
+adapter.onConnection(server.Link);
+```
+
+#### Implementation example: off-thread local flux using nexus-flux-webworker
+
+Defer expensive app-state data calculations off the main thread to avoid blocking UI.
+
+```js
+// Client side
+const adapter = new WebWorkerAdapter.Client('my-web-worker.js');
+const client = new Client().use(adapter.fetch);
+client.pipe(adapter);
+adapter.pipe(client);
+```
+
+```js
+// Server side
+const adapter = new WebWorkerAdapter.Server({ maxClients: 1 });
+const server = new Server().use(adapter.publish);
+adapter.onConnection(server.Link);
+```
+
+#### Implementation example: cross-window flux using nexus-flux-xwindow
+
+Communicate between windows from the same origin using the flux architecture.
+
+```js
+// Client side
+const w = window.parent;
+const adapter = new XWindowAdapter.Client(w)
+const client = new Client().use(adapter.fetch);
+client.pipe(adapter);
+adapter.pipe(client);
+```
+
+```js
+// Server side
+const w = window.open(...);
+const adapter = new XWindowAdapter.Server({ allowFrom: [w] });
+const server = new Server().use(adapter.publish);
+adapter.onConnection(server.Link);
+```
+
+#### Implementation example: node-to-node TCP flux using nexus-flux-node
+
+Communicate between node servers using the flux architecture.
+
+```js
+// Client side
+const adapter = new NodeAdapter.Client('http://192.168.0.1:8080');
+const client = new Client().use(adapter.fetch);
+client.pipe(adapter);
+adapter.client(pipe);
+```
+
+```js
+// Server side
+const adapter = new NodeAdapter.Server({ port: 8080 });
+const client = new Server().use(adapter.publish);
+adapter.onConnection(server.Link);
 ```

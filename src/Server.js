@@ -35,8 +35,10 @@ class Server extends Duplex {
     return this;
   }
 
-  createLink() {
-    const link = new Duplex();
+  Link(link = new Duplex()) {
+    if(__DEV__) {
+      link.should.have.property('pipe').which.is.a.Function;
+    }
     const subscriptions = {};
     const clientID = null;
 
