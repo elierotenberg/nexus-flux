@@ -34,6 +34,7 @@
     "lodash": "^2.4.1",
     "remutable": "^0.16.1",
     "should": "^4.4.2",
-    "strict-events": "^1.2.0"
+    "strict-events": "^1.2.0",
+    "through2": "^0.6.3"
   }
 }

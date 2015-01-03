@@ -44,6 +44,8 @@ class Client extends Duplex {
     });
 
     this.on('data', this._receive);
+    this._send(new Client.Event.Open({ clientID }));
+    this.lifespan.then(() => this._send(new Client.Event.Close()));
   }
 
   use(fetch) {
@@ -239,7 +241,7 @@ class Event {
 
 Event._shortName = {};
 
-class ClientID extends Event {
+class Open extends Event {
   constructor({ clientID }) {
     if(__DEV__) {
       clientID.should.be.a.String;
@@ -250,6 +252,13 @@ class ClientID extends Event {
 
   get clientID() {
     return this.p.clientID;
+  }
+}
+
+class Close extends Event {
+  constructor() {
+    super();
+    this.p = {};
   }
 }
 
@@ -300,7 +309,8 @@ class Dispatch extends Event {
   }
 }
 
-Event._register('c', 'ClientID', ClientID);
+Event._register('o', 'Open', Open);
+Event._register('c', 'Close', Close);
 Event._register('s', 'Subscribe', Subscribe);
 Event._register('u', 'Unsbuscribe', Unsbuscribe);
 Event._register('d', 'Dispatch', Dispatch);

@@ -21,7 +21,7 @@ Component #3 <---+
 
 ```
 
-Over the wire Nexus Flux Diagram
+Over the wire Nexus Flux Diagram using Websockets
 ```
 Component #A1 <---+
                   |
