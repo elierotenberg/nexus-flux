@@ -14,17 +14,10 @@ const INT_MAX = 9007199254740992;
 // - Writable is a stream of Server.Event objects
 // - Readable is a stream of Client.Event objects
 class Client extends Duplex {
-  constructor(clientID = _.uniqueId(`Client${_.random(1, INT_MAX - 1)}`)) {
+  constructor(adapter, clientID = _.uniqueId(`Client${_.random(1, INT_MAX - 1)}`)) {
     if(__DEV__) {
+      adapter.should.be.an.instanceOf(Client.Adapter);
       clientID.should.be.a.String;
-      asap(() => {
-        try {
-          this._fetch.should.be.a.Function;
-        }
-        catch(err) {
-          console.warn(`Client#use(fetch) should be called immediatly after instanciation.`);
-        }
-      });
     }
 
     super({
@@ -40,20 +33,15 @@ class Client extends Duplex {
       _stores: {},
       _refetching: {},
       _actions: {},
-      _fetch: null,
+      _fetch: adapter.fetch,
     });
+
+    adapter.pipe(this);
+    this.pipe(adapter);
 
     this.on('data', this._receive);
     this._send(new Client.Event.Open({ clientID }));
     this.lifespan.then(() => this._send(new Client.Event.Close()));
-  }
-
-  use(fetch) {
-    if(__DEV__) {
-      fetch.should.be.an.Function;
-    }
-    this._fetch = fetch;
-    return this;
   }
 
   Store(path, lifespan) {
@@ -193,6 +181,18 @@ class Client extends Duplex {
       }
     });
     producer.update(squash);
+  }
+}
+
+class Adapter extends Duplex {
+  constructor() {
+    if(__DEV__) {
+      this.should.have.property('fetch').which.is.a.Function.and.is.not.exactly(Adapter.prototype.fetch);
+    }
+  }
+
+  fetch(path) {
+    throw new TypeError('Client.Adapter should implement fetch(path: String): Promise(Remutable)');
   }
 }
 
@@ -379,6 +379,7 @@ Event.Subscribe   = Event._[Subscribe.t()]    = Subscribe;
 Event.Unsbuscribe = Event._[Unsbuscribe.t()]  = Unsbuscribe;
 Event.Dispatch    = Event._[Dispatch.t()]     = Dispatch;
 
+Client.Adapter = Adapter;
 Client.Event = Event;
 
 module.exports = Client;

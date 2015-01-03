@@ -104,41 +104,20 @@ removeItem.onDispatch((clientID, { name }) => {
 });
 ```
 
-#### Implementation example: hand-crafted local flux
+#### Implementation example: local flux using LocalAdapter
+
+This implements the orthodox Flux for in-app data propagation.
+
+You can check the adapter from [https://github.com/elierotenberg/nexus-flux/tree/master/src/LocalAdapter.js](its source), which is trivial.
 
 ```js
+const buffer = {};
+const client = new Client(new LocalAdapter.Client(buffer));
+const server = new Server(new LocalAdapter.Server(buffer));
+// manually accept client
+server.accept(client);
 
-// server-side store single source of truth is an Object containing Remutable instances
-const data = {};
-
-// instanciate a server with a basic publish implementation
-const server = new Server().use((path, value) => data[path] = value);
-// instanciate a client with a basic fetch implementation
-const client = new Client().use((path) => Promise.resolve(data[path].head));
-
-// instanciate a link (representation of a client from the server)
-const link = server.Link(client);
-
-const todoList = server.Store('/todo-list');
-const removeItem = server.Action('/remove-item');
-
-todoList
-.set('first', { description: 'My first item' })
-.set('second', { description: 'My second item' })
-.set('third', { description: 'My third item' })
-.commit();
-
-removeItem.onDispatch((clientID, { name }) => {
-  todoList.delete(name).commit();
-});
-
-React.render(<MyComponent flux={client} />, document.getElementById('app-root'));
-
-// Unpipe everything in 10s
-setTimeout(() => {
-  client.end();
-  link.end();
-}, 10000);
+// use the server and client instance like above.
 ```
 
 #### Implementation example: flux over the wire using nexus-flux-socket.io
@@ -146,37 +125,31 @@ setTimeout(() => {
 Share global server-side app state across all connected clients.
 
 ```js
-// Client side
-const adapter = new SocketIOAdapter.Client('http://localhost:8080');
-const client = new Client().use(adapter.fetch);
-client.pipe(adapter);
-adapter.pipe(client);
+// Client side: runs in the browser or in a node process
+const client = new Client(new SocketIOAdapter.Client('http://localhost:8080'));
 ```
 
 ```js
-/// Server side
-const adapter = new SocketIOAdapter.Server({ port: 8080, maxClients: 50000 });
-const server = new Server().use(adapter.publish);
-adapter.onConnection(server.Link);
+// Server side: runs in a node process (which may or may not be the same process as the client)
+// Clients are automatically accepted
+const server = new Server(new SocketIOAdapter.Server({ port: 8080, maxClients: 50000 });
 ```
 
-#### Implementation example: off-thread local flux using nexus-flux-webworker
+#### Implementation example: off-thread local flux using WebWorkerAdapter
 
 Defer expensive app-state data calculations off the main thread to avoid blocking UI.
 
+You can check the adapter from [https://github.com/elierotenberg/nexus-flux/tree/master/src/WebWorkerAdapter.js](its source). No black magic.
+
 ```js
-// Client side
-const adapter = new WebWorkerAdapter.Client('my-web-worker.js');
-const client = new Client().use(adapter.fetch);
-client.pipe(adapter);
-adapter.pipe(client);
+// Client side: runs in the main thread
+const client = new Client(new WebworkerAdapter.Client(new Worker('my-web-worker.js')));
 ```
 
 ```js
-// Server side
-const adapter = new WebWorkerAdapter.Server({ maxClients: 1 });
-const server = new Server().use(adapter.publish);
-adapter.onConnection(server.Link);
+// Server side: runs in the webworker
+// Client is automatically accepted
+const server = new Server(new WebWorkerAdapter.Server());
 ```
 
 #### Implementation example: cross-window flux using nexus-flux-xwindow
@@ -184,20 +157,16 @@ adapter.onConnection(server.Link);
 Communicate between windows from the same origin using the flux architecture.
 
 ```js
-// Client side
-const w = window.parent;
-const adapter = new XWindowAdapter.Client(w)
-const client = new Client().use(adapter.fetch);
-client.pipe(adapter);
-adapter.pipe(client);
+// Client side: runs in the child window
+const client = new Client(new XWindowAdapter.Client({ window: window.parent }));
 ```
 
 ```js
-// Server side
+// Server side: runs in the parent window
+// Clients are automatically accepted
+// Restrict access to the opened window
 const w = window.open(...);
-const adapter = new XWindowAdapter.Server({ allowFrom: [w] });
-const server = new Server().use(adapter.publish);
-adapter.onConnection(server.Link);
+const server = new Server(new XWindowAdapter.Server({ accept: [w] }));
 ```
 
 #### Implementation example: node-to-node TCP flux using nexus-flux-node
@@ -205,16 +174,19 @@ adapter.onConnection(server.Link);
 Communicate between node servers using the flux architecture.
 
 ```js
-// Client side
-const adapter = new NodeAdapter.Client('http://192.168.0.1:8080');
-const client = new Client().use(adapter.fetch);
-client.pipe(adapter);
-adapter.client(pipe);
+// Client side: runs in a node process
+const client = new Client(new NodeAdapter.Client('http://192.168.0.1:8080'));
 ```
 
 ```js
-// Server side
-const adapter = new NodeAdapter.Server({ port: 8080 });
-const client = new Server().use(adapter.publish);
-adapter.onConnection(server.Link);
+// Server side: runs in a node process, which may or may not be the same process as the client
+// Clients are automatically accepted
+const server = new Server(new NodeAdapter.Server({ port: 8080 }));
 ```
+
+
+#### Implement your own adapter!
+
+If you think of a communication channel where Flux would be relevant, you can implement your own adapter.
+
+The WebWorkerAdapter source should provide helpful guidance for doing so.

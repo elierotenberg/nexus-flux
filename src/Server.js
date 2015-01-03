@@ -9,34 +9,24 @@ const Client = require('./Client');
 const INT_MAX = 9007199254740992;
 
 class Server extends Duplex {
-  constructor() {
+  constructor(adapter) {
+    if(__DEV__) {
+      adapter.should.be.an.instanceOf(Server.Adapter);
+    }
     this._stores = {};
     this._actions = {};
-    this._publish = null;
+    this._publish = adapter;
+    this.lifespan = new Promise((resolve) => this.release = resolve);
     this.on('data', this._receive);
-
-    if(__DEV__) {
-      asap(() => {
-        try {
-          this._publish.should.be.a.Function;
-        }
-        catch(err) {
-          console.warn(`Server#use(publish) should be called immediatly after instanciation.`);
-        }
-      });
+    this.on('end', this.release);
+    if(adapter.onConnection && _.isFunction(adapter.onConnection)) {
+      adapter.onConnection(this.accept, this.lifespan);
     }
   }
 
-  use(publish) {
+  accept(link) {
     if(__DEV__) {
-      publish.should.be.a.Function;
-    }
-    this._publish = publish;
-    return this;
-  }
-
-  Link(link = new Duplex()) {
-    if(__DEV__) {
+      link.should.be.an.instanceOf(Duplex);
       link.should.have.property('pipe').which.is.a.Function;
     }
     const subscriptions = {};
@@ -120,15 +110,15 @@ class Server extends Duplex {
 
     const { engine } = this._stores[path] || (() => {
       const engine = new Store.Engine();
-      return this._stores[path] = {
-        engine,
-        consumer: engine.createConsumer()
-        .onUpdate((consumer, patch) => {
-          this._publish(path, consumer);
-          this._send(new Server.Event.Update({ path, patch }));
-        })
-        .onDelete(() => this._send(new Server.Event.Delete({ path }))),
-      };
+      const consumer = engine.createConsumer()
+      .onUpdate((consumer, patch) => {
+        this._publish(path, consumer);
+        this._send(new Server.Event.Update({ path, patch }));
+      })
+      .onDelete(() => this._send(new Server.Event.Delete({ path })));
+      // immediatly publish the (empty) store
+      this._publish(path, consumer);
+      return this._stores[path] = { engine, consumer };
     })();
     const producer = engine.createProducer();
     producer.lifespan.then(() => {
@@ -162,6 +152,23 @@ class Server extends Duplex {
     });
     lifespan.then(consumer.release);
     return consumer;
+  }
+}
+
+class Adapter {
+  constructor() {
+    if(__DEV__) {
+      this.should.have.property('publish').which.is.a.Function.and.is.not.exactly(Adapter.prototype.publish);
+      this.should.have.property('onConnection').which.is.a.Function.and.is.not.exactly(Adapter.prototype.onConnection);
+    }
+  }
+
+  publish(path, remutable) {
+    throw new TypeError('Server.Adapter should implement publish(path: String, remutable: Remutable): void 0');
+  }
+
+  onConnection(fn, lifespan) {
+    throw new TypeError('Server.Adapter should implement onConnection(fn: Function(client: Duplex): void 0, lifespan: Promise): void 0');
   }
 }
 
