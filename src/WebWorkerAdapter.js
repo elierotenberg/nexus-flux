@@ -1,8 +1,7 @@
 const Client = require('./Client');
 const Server = require('./Server');
 const Remutable = require('remutable');
-const { Duplex } = require('stream');
-
+const through = require('through2');
 
 // Client.Events:
 // Client -> Adapter -> (worker.postMessage -> worker.onmessage) -> Server.Link -> Server
@@ -19,8 +18,8 @@ const EVENT = 'e';
 // this is by no means a password or a security feature.
 const salt = '__NqnLKaw8NrAt';
 
-const ClientAdapterDuplex = through2.ctor({ objectMode: true, allowHalfOpen: false },
-  function receive(ev, enc, done) { // Client -> Adapter
+const ClientAdapterDuplex = through.ctor({ objectMode: true, allowHalfOpen: false },
+  function receiveFromClient(ev, enc, done) { // Client -> Adapter
     try {
       if(__DEV__) {
         ev.should.be.an.instanceOf(Client.Event);
@@ -92,8 +91,8 @@ class ClientAdapter extends ClientAdapterDuplex {
 }
 /* jshint worker:true */
 
-const LinkDuplex = through2.ctor({ objectMode: true, allowHalfOpen: true },
-  function receive(ev, enc, done) { // Server (them) -> Server.Link (us)
+const LinkDuplex = through.ctor({ objectMode: true, allowHalfOpen: true },
+  function receiveFromServer(ev, enc, done) { // Server (them) -> Server.Link (us)
     try {
       if(__DEV__) {
         ev.should.be.an.instanceOf(Server.Event);
@@ -142,9 +141,6 @@ class Link extends LinkDuplex { // represents a client connection from the serve
         throw new TypeError(`Unknown message type: ${type}`);
       }
     }
-  }
-
-  _forwardToClient(ev) {
   }
 }
 /* jshint worker:false */

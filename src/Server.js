@@ -1,23 +1,43 @@
-const { Duplex } = require('stream');
 const through = require('through2');
 const Remutable = require('remutable');
-const { Patch } = Remutable;
 
 const Store = require('./Store');
 const Action = require('./Action');
-const Client = require('./Client');
+const Client = require('./Client.Event'); // we just need this reference for typechecks
+const Event = require('./Server.Event').Event; // jshint ignore:line
 
-class Server extends Duplex {
+const ServerDuplex = through.ctor({ objectMode: true, allowHalfOpen: false},
+  function receiveFromLink({ clientID, ev }, enc, done) {
+    try {
+      if(__DEV__) {
+        clientID.should.be.a.String;
+        ev.should.be.an.instanceOf(Client.Event);
+      }
+    }
+    catch(err) {
+      return done(err);
+    }
+    this._receive({ clientID, ev });
+    return done(null);
+  },
+  function flush(done) {
+    this.release();
+    done(null);
+  }
+);
+
+class Server extends ServerDuplex {
   constructor(adapter) {
     if(__DEV__) {
       adapter.should.be.an.instanceOf(Server.Adapter);
+      this.should.have.property('pipe').which.is.a.Function;
     }
+    super();
+    _.bindAll(this);
     this._stores = {};
     this._actions = {};
     this._publish = adapter;
     this.lifespan = new Promise((resolve) => this.release = resolve);
-    this.on('data', this._receive);
-    this.on('end', this.release);
     if(adapter.onConnection && _.isFunction(adapter.onConnection)) {
       adapter.onConnection(this.accept, this.lifespan);
     }
@@ -25,7 +45,6 @@ class Server extends Duplex {
 
   accept(link) {
     if(__DEV__) {
-      link.should.be.an.instanceOf(Duplex);
       link.should.have.property('pipe').which.is.a.Function;
     }
     const subscriptions = {};
@@ -178,100 +197,6 @@ class Adapter {
     throw new TypeError('Server.Adapter should implement onConnection(fn: Function(client: Duplex): void 0, lifespan: Promise): void 0');
   }
 }
-
-class Event {
-  constructor() {
-    if(__DEV__) {
-      this.should.have.property('toJS').which.is.a.Function;
-      this.constructor.should.have.property('fromJS').which.is.a.Function;
-    }
-    Object.assign(this, {
-      _json: null,
-      _js: null,
-    });
-  }
-
-  toJS() {
-    if(this._js === null) {
-      this._js = {
-        t: this.constructor.t(),
-        j: this._toJS(),
-      };
-    }
-    return this._js;
-  }
-
-  toJSON() {
-    if(this._json === null) {
-      this._json = JSON.stringify(this.toJS());
-    }
-    return this._json;
-  }
-
-  static fromJSON(json) {
-    const { t, j } = JSON.parse(json);
-    return Event._[t].fromJS(j);
-  }
-}
-
-class Update extends Event {
-  constructor(path, patch) {
-    if(__DEV__) {
-      path.should.be.a.String;
-      patch.should.be.an.instanceOf(Patch);
-    }
-    super();
-    Object.assign(this, { path, patch });
-  }
-
-  _toJS() {
-    return {
-      p: this.path,
-      u: this.patch.toJS(),
-    };
-  }
-
-  static t() {
-    return 'u';
-  }
-
-  static fromJS({ p, u }) {
-    if(__DEV__) {
-      p.should.be.a.String;
-      u.should.be.an.Object;
-    }
-    return new Update(p, Patch.fromJS(u));
-  }
-}
-
-class Delete extends Event {
-  constructor(path) {
-    if(__DEV__) {
-      path.should.be.a.String;
-    }
-    super();
-    Object.assign(this, { path });
-  }
-
-  _toJS() {
-    return { p: this.patch };
-  }
-
-  static t() {
-    return 'd';
-  }
-
-  static fromJS({ p }) {
-    if(__DEV__) {
-      p.should.be.a.String;
-    }
-    return new Delete(p);
-  }
-}
-
-Event._ = {};
-Event.Update = Event._[Update.t()] = Update;
-Event.Delete = Event._[Delete.t()] = Delete;
 
 Server.Event = Event;
 Server.Adapter = Adapter;

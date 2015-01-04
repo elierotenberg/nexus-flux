@@ -51,10 +51,12 @@ if (__DEV__) {
 var Client = require("./Client");
 var Server = require("./Server");
 var Remutable = require("remutable");
-var _ref5 = require("stream");
+var through = require("through2");
 
-var Duplex = _ref5.Duplex;
-
+// Client.Events:
+// Client -> Adapter -> (worker.postMessage -> worker.onmessage) -> Server.Link -> Server
+// Server.Events:
+// Server -> Server.Link -> (worker.postMessage -> window.onmessage) -> Adapter -> Client
 
 // constants for the communication 'protocol'/convention
 var FETCH = "f";
@@ -66,22 +68,34 @@ var EVENT = "e";
 // this is by no means a password or a security feature.
 var salt = "__NqnLKaw8NrAt";
 
+var ClientAdapterDuplex = through.ctor({ objectMode: true, allowHalfOpen: false }, function receiveFromClient(ev, enc, done) {
+  // Client -> Adapter
+  try {
+    if (__DEV__) {
+      ev.should.be.an.instanceOf(Client.Event);
+    }
+    this._worker.postMessage(_defineProperty({}, salt, [EVENT, ev.toJS()])); // Client.Adapter (us) -> Server.Link (them)
+  } catch (err) {
+    return done(err);
+  }
+  return done(null);
+});
+
 var ClientAdapter = (function () {
-  var _Client$Adapter = Client.Adapter;
+  var _ClientAdapterDuplex = ClientAdapterDuplex;
   var ClientAdapter = function ClientAdapter(worker) {
     if (__DEV__) {
       window.should.have.property("Worker").which.is.a.Function;
       worker.should.be.an.instanceOf(window.Worker);
     }
-    _Client$Adapter.call(this);
+    _ClientAdapterDuplex.call(this);
     _.bindAll(this);
     this._worker = worker;
-    this.on("data", this._forwardToWorker);
-    this._worker.onmessage = this._receiveFromWorker;
+    this._worker.onmessage = this._receiveFromWorker; // Server.Link (them) -> Client.Adapter (us)
     this._fetching = {};
   };
 
-  _inherits(ClientAdapter, _Client$Adapter);
+  _inherits(ClientAdapter, _ClientAdapterDuplex);
 
   ClientAdapter.prototype.fetch = function (path, hash) {
     var _this = this;
@@ -106,8 +120,9 @@ var ClientAdapter = (function () {
     });
   };
 
-  ClientAdapter.prototype._receiveFromWorker = function (_ref6) {
-    var data = _ref6.data;
+  ClientAdapter.prototype._receiveFromWorker = function (_ref5) {
+    var data = _ref5.data;
+    // Server.Link (them) -> Client.Adapter (us)
     if (_.isObject(data) && data[salt] !== void 0) {
       // don't catch messages from other stuff by mistake
       var _data$salt = _slicedToArray(data[salt], 2);
@@ -129,7 +144,7 @@ var ClientAdapter = (function () {
         if (__DEV__) {
           payload.should.be.an.Object;
         }
-        return this.write(Server.Event.fromJS(payload));
+        return this.push(Server.Event.fromJS(payload)); // Client.Adapter (us) -> Client
       }
       if (__DEV__) {
         throw new TypeError("Unknown message type: " + type);
@@ -137,37 +152,42 @@ var ClientAdapter = (function () {
     }
   };
 
-  ClientAdapter.prototype._forwardToWorker = function (ev) {
-    if (__DEV__) {
-      ev.should.be.an.instanceOf(Client.Event);
-    }
-    this._worker.postMessage(_defineProperty({}, salt, [EVENT, ev.toJS()]));
-  };
-
   return ClientAdapter;
 })();
 
 /* jshint worker:true */
+
+var LinkDuplex = through.ctor({ objectMode: true, allowHalfOpen: true }, function receiveFromServer(ev, enc, done) {
+  // Server (them) -> Server.Link (us)
+  try {
+    if (__DEV__) {
+      ev.should.be.an.instanceOf(Server.Event);
+    }
+    this.push(_defineProperty({}, salt, [EVENT, ev.toJS()]));
+  } catch (err) {
+    return done(err);
+  }
+  return done(null);
+});
+
 var Link = (function () {
-  /* jshint worker:true */var _Duplex = Duplex;
+  var _LinkDuplex = LinkDuplex;
   var Link = ( // represents a client connection from the servers' point of view
     function Link(buffer) {
       if (__DEV__) {
         buffer.should.be.an.Object;
       }
-      _Duplex.call(this, {
-        allowHalfOpen: false,
-        objectMode: true });
+      _LinkDuplex.call(this);
       this._buffer = buffer;
-      this.on("data", this._forwardToClient);
-      self.onmessage = this._receiveFromClient;
+      self.onmessage = this._receiveFromClient; // Client.Adapter (them) -> Server.Link (us)
     }
   );
 
-  _inherits(Link, _Duplex);
+  _inherits(Link, _LinkDuplex);
 
-  Link.prototype._receiveFromClient = function (_ref7) {
-    var data = _ref7.data;
+  Link.prototype._receiveFromClient = function (_ref6) {
+    var data = _ref6.data;
+    // Client.Adapter (them) -> Server.Link (us)
     if (_.isObject(data) && data[salt] !== void 0) {
       var _data$salt2 = _slicedToArray(data[salt], 2);
 
@@ -178,7 +198,7 @@ var Link = (function () {
           payload.should.be.a.String;
         }
         if (this._buffer[payload] !== void 0) {
-          return self.postMessage(_defineProperty({}, salt, [PROVIDE, { path: payload, js: this._buffer[payload] }]));
+          return self.postMessage(_defineProperty({}, salt, [PROVIDE, { path: payload, js: this._buffer[payload] }])); // Server.Link (us) -> Client.Adapter (them)
         }
         if (__DEV__) {
           throw new Error("No such store: " + payload);
@@ -189,19 +209,12 @@ var Link = (function () {
         if (__DEV__) {
           payload.should.be.an.Object;
         }
-        return this.write(Client.Event.fromJS(payload));
+        return this.push(Client.Event.fromJS(payload)); // Server.Link (us) -> Server (them)
       }
       if (__DEV__) {
         throw new TypeError("Unknown message type: " + type);
       }
     }
-  };
-
-  Link.prototype._forwardToClient = function (ev) {
-    if (__DEV__) {
-      ev.should.be.an.instanceOf(Server.Event);
-    }
-    return this.write(_defineProperty({}, salt, [EVENT, ev.toJS()]));
   };
 
   return Link;

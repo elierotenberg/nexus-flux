@@ -23,43 +23,57 @@ var __NODE__ = !__BROWSER__;
 if (__DEV__) {
   Promise.longStackTraces();
 }
-var _ref = require("stream");
-
-var Duplex = _ref.Duplex;
 var through = require("through2");
 var Remutable = require("remutable");
-var Patch = Remutable.Patch;
-
 
 var Store = require("./Store");
 var Action = require("./Action");
-var Client = require("./Client");
+var Client = require("./Client.Event"); // we just need this reference for typechecks
+var Event = require("./Server.Event").Event; // jshint ignore:line
+
+var ServerDuplex = through.ctor({ objectMode: true, allowHalfOpen: false }, function receiveFromLink(_ref, enc, done) {
+  var clientID = _ref.clientID;
+  var ev = _ref.ev;
+  try {
+    if (__DEV__) {
+      clientID.should.be.a.String;
+      ev.should.be.an.instanceOf(Client.Event);
+    }
+  } catch (err) {
+    return done(err);
+  }
+  this._receive({ clientID: clientID, ev: ev });
+  return done(null);
+}, function flush(done) {
+  this.release();
+  done(null);
+});
 
 var Server = (function () {
-  var _Duplex = Duplex;
+  var _ServerDuplex = ServerDuplex;
   var Server = function Server(adapter) {
     var _this = this;
     if (__DEV__) {
       adapter.should.be.an.instanceOf(Server.Adapter);
+      this.should.have.property("pipe").which.is.a.Function;
     }
+    _ServerDuplex.call(this);
+    _.bindAll(this);
     this._stores = {};
     this._actions = {};
     this._publish = adapter;
     this.lifespan = new Promise(function (resolve) {
       return _this.release = resolve;
     });
-    this.on("data", this._receive);
-    this.on("end", this.release);
     if (adapter.onConnection && _.isFunction(adapter.onConnection)) {
       adapter.onConnection(this.accept, this.lifespan);
     }
   };
 
-  _inherits(Server, _Duplex);
+  _inherits(Server, _ServerDuplex);
 
   Server.prototype.accept = function (link) {
     if (__DEV__) {
-      link.should.be.an.instanceOf(Duplex);
       link.should.have.property("pipe").which.is.a.Function;
     }
     var subscriptions = {};
@@ -217,111 +231,6 @@ Adapter.prototype.onConnection = function (accept, lifespan) {
   }
   throw new TypeError("Server.Adapter should implement onConnection(fn: Function(client: Duplex): void 0, lifespan: Promise): void 0");
 };
-
-var Event = function Event() {
-  if (__DEV__) {
-    this.should.have.property("toJS").which.is.a.Function;
-    this.constructor.should.have.property("fromJS").which.is.a.Function;
-  }
-  Object.assign(this, {
-    _json: null,
-    _js: null });
-};
-
-Event.prototype.toJS = function () {
-  if (this._js === null) {
-    this._js = {
-      t: this.constructor.t(),
-      j: this._toJS() };
-  }
-  return this._js;
-};
-
-Event.prototype.toJSON = function () {
-  if (this._json === null) {
-    this._json = JSON.stringify(this.toJS());
-  }
-  return this._json;
-};
-
-Event.fromJSON = function (json) {
-  var _ref5 = JSON.parse(json);
-
-  var _t = _ref5.t;
-  var j = _ref5.j;
-  return Event._[_t].fromJS(j);
-};
-
-var Update = (function () {
-  var _Event = Event;
-  var Update = function Update(path, patch) {
-    if (__DEV__) {
-      path.should.be.a.String;
-      patch.should.be.an.instanceOf(Patch);
-    }
-    _Event.call(this);
-    Object.assign(this, { path: path, patch: patch });
-  };
-
-  _inherits(Update, _Event);
-
-  Update.prototype._toJS = function () {
-    return {
-      p: this.path,
-      u: this.patch.toJS() };
-  };
-
-  Update.t = function () {
-    return "u";
-  };
-
-  Update.fromJS = function (_ref6) {
-    var p = _ref6.p;
-    var u = _ref6.u;
-    if (__DEV__) {
-      p.should.be.a.String;
-      u.should.be.an.Object;
-    }
-    return new Update(p, Patch.fromJS(u));
-  };
-
-  return Update;
-})();
-
-var Delete = (function () {
-  var _Event2 = Event;
-  var Delete = function Delete(path) {
-    if (__DEV__) {
-      path.should.be.a.String;
-    }
-    _Event2.call(this);
-    Object.assign(this, { path: path });
-  };
-
-  _inherits(Delete, _Event2);
-
-  Delete.prototype._toJS = function () {
-    return { p: this.patch };
-  };
-
-  Delete.t = function () {
-    return "d";
-  };
-
-  Delete.fromJS = function (_ref7) {
-    var p = _ref7.p;
-    if (__DEV__) {
-      p.should.be.a.String;
-    }
-    return new Delete(p);
-  };
-
-  return Delete;
-})();
-
-Event._ = {};
-Event.Update = Event._[Update.t()] = Update;
-Event.Delete = Event._[Delete.t()] = Delete;
 
 Server.Event = Event;
 Server.Adapter = Adapter;

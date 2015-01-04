@@ -18,7 +18,16 @@ var Server = _ref.Server;
 var LocalAdapter = _ref.LocalAdapter;
 
 
-var buffer = {};
-var client = new Client(new LocalAdapter.Client(buffer));
-var server = new Server(new LocalAdapter.Server(buffer));
-server.accept(client);
+// shared state
+var state = { buffer: null, server: null };
+
+_.defer(function () {
+  // server main
+  var server = new Server(new LocalAdapter.Server(state));
+});
+
+_.defer(function () {
+  // client main
+  var client = new Client(new LocalAdapter.Client(state));
+  var todoList = client.Store("/todoList");
+});

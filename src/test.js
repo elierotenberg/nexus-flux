@@ -1,6 +1,14 @@
 const { Client, Server, LocalAdapter } = require('../');
 
-const buffer = {};
-const client = new Client(new LocalAdapter.Client(buffer));
-const server = new Server(new LocalAdapter.Server(buffer));
-server.accept(client);
+// shared state
+const state = { buffer: null, server: null };
+
+_.defer(function() { // server main
+  const server = new Server(new LocalAdapter.Server(state));
+  const todoList = server.Store('/todoList');
+});
+
+_.defer(function() { // client main
+  const client = new Client(new LocalAdapter.Client(state));
+  const todoList = client.Store('/todoList');
+});

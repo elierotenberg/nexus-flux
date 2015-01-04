@@ -111,12 +111,10 @@ This implements the orthodox Flux for in-app data propagation.
 You can check the adapter from [its source](https://github.com/elierotenberg/nexus-flux/tree/master/src/LocalAdapter.js), which is trivial.
 
 ```js
-const buffer = {};
-const client = new Client(new LocalAdapter.Client(buffer));
-const server = new Server(new LocalAdapter.Server(buffer));
-// manually accept client
-server.accept(client);
-
+// init a shared state object; will be used by the LocalAdapter Server/Clients
+const state = { buffer: null, server: null };
+const server = new Server(new LocalAdapter.Server(state));
+const client = new Client(new LocalAdapter.Client(state));
 // use the server and client instance like above.
 ```
 
@@ -131,7 +129,6 @@ const client = new Client(new SocketIOAdapter.Client('http://localhost:8080'));
 
 ```js
 // Server side: runs in a node process, which may or may not be the same process
-// Clients are automatically accepted
 const server = new Server(new SocketIOAdapter.Server({ port: 8080, maxClients: 50000 });
 ```
 
@@ -148,7 +145,6 @@ const client = new Client(new WebworkerAdapter.Client(new Worker('my-web-worker.
 
 ```js
 // Server side: runs in the webworker
-// Client is automatically accepted
 const server = new Server(new WebWorkerAdapter.Server());
 ```
 
@@ -163,7 +159,6 @@ const client = new Client(new XWindowAdapter.Client({ window: window.parent }));
 
 ```js
 // Server side: runs in the parent window
-// Clients are automatically accepted
 // Restrict access to the opened window
 const w = window.open(...);
 const server = new Server(new XWindowAdapter.Server({ accept: [w] }));
@@ -180,7 +175,6 @@ const client = new Client(new NodeAdapter.Client('http://192.168.0.1:8080'));
 
 ```js
 // Server side: runs in a node process, which may or may not be the same process
-// Clients are automatically accepted
 const server = new Server(new NodeAdapter.Server({ port: 8080 }));
 ```
 
@@ -189,4 +183,4 @@ const server = new Server(new NodeAdapter.Server({ port: 8080 }));
 
 If you think of a communication channel where Flux would be relevant, you can implement your own adapter.
 
-The WebWorkerAdapter source should provide helpful guidance for doing so.
+The LocalAdapter and WebworkerAdapter sources should provide helpful guidance for doing so.

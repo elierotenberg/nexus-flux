@@ -1,36 +1,54 @@
+const Remutable = require('remutable');
+const through = require('through2');
+const { EventEmitter } = require('events');
+
 const Client = require('./Client');
 const Server = require('./Server');
-const Remutable = require('remutable');
 
 // Client -> ClientAdapter -> Link -> Server
 // Server -> Link -> ClientAdapter -> Client
-//
-class Bridge {
-  constructor() {
-    this._buffer = {};
-  }
-}
+
+const CONNECTION = 'c'; // connection event name
+
+let _ServerAdapter;
 
 const ClientAdapterDuplex = through.ctor({ objectMode: true, allowHalfOpen: false },
-  function receive(ev, enc, done) { // Client (them) -> Client.Adapter (us)
-    if(__DEV__) {
-      ev.should.be.an.instanceOf(Client.Event);
+  function receiveFromClient(clientEvent, enc, done) { // receive from Client
+    try {
+      if(__DEV__) {
+        clientEvent.should.be.an.instanceOf(Client.Event);
+      }
     }
-    done(ev); // Client.Adapter(us) -> Link (them)
-  },
-  function flush(done) {
-    done(null);
+    catch(err) {
+      return done(err);
+    }
+    this._sendToLink(clientEvent);
+    return done(null);
   }
 );
 
 class ClientAdapter extends ClientAdapterDuplex {
-  constructor(buffer) {
+  constructor(state) {
     if(__DEV__) {
-      buffer.should.be.an.Object;
+      state.should.be.an.Object;
+      state.should.have.property('buffer').which.is.an.Object;
+      state.should.have.property('server').which.is.an.instanceOf(_ServerAdapter);
     }
-    super();
+    super(); // will be piped to and from the client
     _.bindAll(this);
-    this._buffer = buffer;
+    this._buffer = state.buffer;
+    this.link = through.obj(function receiveFromServer(serverEvent, enc, done) {
+      try {
+        if(__DEV__) {
+          serverEvent.should.be.an.instanceOf(Server.Event);
+        }
+      }
+      catch(err) {
+        return done(err);
+      }
+      return this._sendToClient(serverEvent);
+    }); // will be pipe to and from server
+    state.server.connect(this.link); // immediatly connect
   }
 
   fetch(path, hash = null) { // ignore hash
@@ -43,27 +61,36 @@ class ClientAdapter extends ClientAdapterDuplex {
       return this._buffer[path];
     });
   }
+
+  _sendToClient(ev) {
+    if(__DEV__) {
+      ev.should.be.an.instanceOf(Server.Event);
+    }
+    this.push(ev);
+  }
+
+  _sendToLink(ev) {
+    if(__DEV__) {
+      ev.should.an.instanceOf(Client.Event);
+    }
+    this.link.push(ev);
+  }
 }
 
-const LinkDuplex = through.ctor({ objectMode: true, allowHalfOpen: false },
-  function receive(ev, enc, done) { // Client.Adapter (them) -> Link (us)
-    try {
-      if(__DEV__) {
-        ev.should.be.an.instanceOf(Client.Event);
-      }
-
-    }
-  }
-);
-
-class ServerAdapter {
-  constructor(buffer) {
+class ServerAdapter extends Server.Adapter {
+  constructor(state) {
     if(__DEV__) {
-      buffer.should.be.an.Object;
+      state.should.be.an.Object;
+      state.should.have.property('buffer');
+      state.should.have.property('server');
+      (state.buffer === null).should.be.ok;
+      (state.server === null).should.be.ok;
     }
     super();
     _.bindAll(this);
-    this._buffer = buffer;
+    state.buffer = this._buffer = {};
+    state.server = this;
+    this._events = new EventEmitter();
   }
 
   publish(path, consumer) {
@@ -74,14 +101,20 @@ class ServerAdapter {
     this._buffer[path] = consumer;
   }
 
+  connect(link) {
+    this._events.emit(CONNECTION, link);
+  }
+
   onConnection(accept, lifespan) {
     if(__DEV__) {
       accept.should.be.a.Function;
       lifespan.should.have.property('then').which.is.a.Function;
     }
-    // no-op.
+    this._events.addListener(CONNECTION, accept, lifespan);
   }
 }
+
+_ServerAdapter = ServerAdapter;
 
 module.exports = {
   Client: ClientAdapter,
