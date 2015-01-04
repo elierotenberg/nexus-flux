@@ -43,7 +43,7 @@ class EventEmitter {
       _.each(this._listeners[ev], (fn) => fn(...args));
     }
     else if(this._debug) {
-      console.warn(`Emitting event ${ev} ${...args} without listeners, this may be a bug.`);
+      console.warn(`Emitting event ${ev} ${args} without listeners, this may be a bug.`);
     }
   }
 }

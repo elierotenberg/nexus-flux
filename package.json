@@ -29,6 +29,7 @@
   },
   "dependencies": {
     "6to5": "^2.4.3",
+    "asap": "^2.0.0",
     "bluebird": "^2.5.3",
     "immutable": "^3.4.1",
     "lodash": "^2.4.1",

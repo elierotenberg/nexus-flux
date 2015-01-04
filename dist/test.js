@@ -11,10 +11,14 @@ var __NODE__ = !__BROWSER__;
 if (__DEV__) {
   Promise.longStackTraces();
 }
-var Client = require("./Client");
-var Server = require("./Server");
-var EventEmitter = require("./EventEmitter");
-var LocalAdapter = require("./LocalAdapter");
-var WebWorkerAdapter = require("./WebWorkerAdapter");
+var _ref = require("../");
 
-module.exports = { Client: Client, Server: Server, EventEmitter: EventEmitter, LocalAdapter: LocalAdapter, WebWorkerAdapter: WebWorkerAdapter };
+var Client = _ref.Client;
+var Server = _ref.Server;
+var LocalAdapter = _ref.LocalAdapter;
+
+
+var buffer = {};
+var client = new Client(new LocalAdapter.Client(buffer));
+var server = new Server(new LocalAdapter.Server(buffer));
+server.accept(client);

@@ -1,8 +1,13 @@
 const Client = require('./Client');
 const Server = require('./Server');
-const EventEmitter = require('./EventEmitter');
 const Remutable = require('remutable');
 const { Duplex } = require('stream');
+
+
+// Client.Events:
+// Client -> Adapter -> (worker.postMessage -> worker.onmessage) -> Server.Link -> Server
+// Server.Events:
+// Server -> Server.Link -> (worker.postMessage -> window.onmessage) -> Adapter -> Client
 
 // constants for the communication 'protocol'/convention
 const FETCH = 'f';
@@ -14,7 +19,22 @@ const EVENT = 'e';
 // this is by no means a password or a security feature.
 const salt = '__NqnLKaw8NrAt';
 
-class ClientAdapter extends Client.Adapter {
+const ClientAdapterDuplex = through2.ctor({ objectMode: true, allowHalfOpen: false },
+  function receive(ev, enc, done) { // Client -> Adapter
+    try {
+      if(__DEV__) {
+        ev.should.be.an.instanceOf(Client.Event);
+      }
+      this._worker.postMessage({ [salt]: [EVENT, ev.toJS()]}); // Client.Adapter (us) -> Server.Link (them)
+    }
+    catch(err) {
+      return done(err);
+    }
+    return done(null);
+  }
+);
+
+class ClientAdapter extends ClientAdapterDuplex {
   constructor(worker) {
     if(__DEV__) {
       window.should.have.property('Worker').which.is.a.Function;
@@ -23,25 +43,28 @@ class ClientAdapter extends Client.Adapter {
     super();
     _.bindAll(this);
     this._worker = worker;
-    this.on('data', this._forwardToWorker);
-    this._worker.onmessage = this._receiveFromWorker;
+    this._worker.onmessage = this._receiveFromWorker; // Server.Link (them) -> Client.Adapter (us)
     this._fetching = {};
   }
 
   fetch(path, hash) { // ignore hash
-    if(__DEV__) {
-      path.should.be.a.String;
-    }
-    if(this._fetching[path] === void 0) {
-      let resolve;
-      const promise = new Promise((_resolve) => resolve = _resolve);
-      this._fetching[path] = { resolve, promise };
-      this._worker.postMessage({ [salt]: [FETCH, path] }); // salt the message to make is distinguishable
-    }
-    return this._fetching[path];
+    return Promise.try(() => {
+      if(__DEV__) {
+        path.should.be.a.String;
+        (_.isNull(hash) || _.isString(hash)).should.be.true;
+      }
+
+      if(this._fetching[path] === void 0) {
+        let resolve;
+        const promise = new Promise((_resolve) => resolve = _resolve);
+        this._fetching[path] = { resolve, promise };
+        this._worker.postMessage({ [salt]: [FETCH, path] }); // salt the message to make is distinguishable
+      }
+      return this._fetching[path];
+    });
   }
 
-  _receiveFromWorker({ data }) {
+  _receiveFromWorker({ data }) { // Server.Link (them) -> Client.Adapter (us)
     if(_.isObject(data) && data[salt] !== void 0) { // don't catch messages from other stuff by mistake
       const [type, payload] = data[salt];
       if(type === PROVIDE) {
@@ -59,33 +82,42 @@ class ClientAdapter extends Client.Adapter {
         if(__DEV__) {
           payload.should.be.an.Object;
         }
-        return this.write(Server.Event.fromJS(payload));
+        return this.push(Server.Event.fromJS(payload)); // Client.Adapter (us) -> Client
       }
       if(__DEV__) {
         throw new TypeError(`Unknown message type: ${type}`);
       }
     }
   }
-
-  _forwardToWorker(ev) {
-    if(__DEV__) {
-      ev.should.be.an.instanceOf(Client.Event);
-    }
-    this._worker.postMessage({ [salt]: [EVENT, ev.toJS()]});
-  }
 }
+/* jshint worker:true */
 
-class Link extends Duplex { // represents a client connection from the servers' point of view
+const LinkDuplex = through2.ctor({ objectMode: true, allowHalfOpen: true },
+  function receive(ev, enc, done) { // Server (them) -> Server.Link (us)
+    try {
+      if(__DEV__) {
+        ev.should.be.an.instanceOf(Server.Event);
+      }
+      this.push({ [salt]: [EVENT, ev.toJS()] });
+    }
+    catch(err) {
+      return done(err);
+    }
+    return done(null);
+  }
+);
+
+class Link extends LinkDuplex { // represents a client connection from the servers' point of view
   constructor(buffer) {
     if(__DEV__) {
       buffer.should.be.an.Object;
     }
+    super();
     this._buffer = buffer;
-    this.on('data', this._forwardToClient);
-    self.onmessage = this._receiveFromClient;
+    self.onmessage = this._receiveFromClient; // Client.Adapter (them) -> Server.Link (us)
   }
 
-  _receiveFromClient({ data }) {
+  _receiveFromClient({ data }) { // Client.Adapter (them) -> Server.Link (us)
     if(_.isObject(data) && data[salt] !== void 0) {
       const [type, payload] = data[salt];
       if(type === FETCH) {
@@ -93,7 +125,7 @@ class Link extends Duplex { // represents a client connection from the servers' 
           payload.should.be.a.String;
         }
         if(this._buffer[payload] !== void 0) {
-          return self.postMessage({ [salt]: [PROVIDE, { path: payload, js: this._buffer[payload] }]);
+          return self.postMessage({ [salt]: [PROVIDE, { path: payload, js: this._buffer[payload] }] }); // Server.Link (us) -> Client.Adapter (them)
         }
         if(__DEV__) {
           throw new Error(`No such store: ${payload}`);
@@ -104,7 +136,7 @@ class Link extends Duplex { // represents a client connection from the servers' 
         if(__DEV__) {
           payload.should.be.an.Object;
         }
-        return this.write(Client.Event.fromJS(payload));
+        return this.push(Client.Event.fromJS(payload)); // Server.Link (us) -> Server (them)
       }
       if(__DEV__) {
         throw new TypeError(`Unknown message type: ${type}`);
@@ -113,13 +145,11 @@ class Link extends Duplex { // represents a client connection from the servers' 
   }
 
   _forwardToClient(ev) {
-    if(__DEV__) {
-      ev.should.be.an.instanceOf(Server.Event);
-    }
-    return this.write({ [salt]: [EVENT, ev.toJS()]});
   }
 }
+/* jshint worker:false */
 
+/* jshint worker:true */
 class ServerAdapter extends Server.Adapter {
   constructor() {
     if(__DEV__) {
@@ -139,9 +169,14 @@ class ServerAdapter extends Server.Adapter {
   }
 
   onConnection(accept, lifespan) { // as soon as the server binds it, pass it a new instance
+    if(__DEV__) {
+      accept.should.be.a.Function;
+      lifespan.should.have.property('then').which.is.a.Function;
+    }
     _.defer(() => accept(new Link(this._data)));
   }
 }
+/* jshint worker:false */
 
 module.exports = {
   Client: ClientAdapter,

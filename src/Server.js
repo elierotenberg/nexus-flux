@@ -1,12 +1,11 @@
 const { Duplex } = require('stream');
 const through = require('through2');
-const asap = require('asap');
 const Remutable = require('remutable');
 const { Patch } = Remutable;
 
+const Store = require('./Store');
+const Action = require('./Action');
 const Client = require('./Client');
-
-const INT_MAX = 9007199254740992;
 
 class Server extends Duplex {
   constructor(adapter) {
@@ -30,7 +29,7 @@ class Server extends Duplex {
       link.should.have.property('pipe').which.is.a.Function;
     }
     const subscriptions = {};
-    const clientID = null;
+    let clientID = null;
 
     link.pipe(through.obj((ev, enc, done) => { // filter & pipe client events to the server
       if(__DEV__) {
@@ -83,7 +82,7 @@ class Server extends Duplex {
         return done(null);
       }
       return done(new TypeError(`Unknown Server.Event: ${ev}`));
-    })
+    }))
     .pipe(link);
 
     return link;
@@ -163,11 +162,19 @@ class Adapter {
     }
   }
 
-  publish(path, remutable) {
+  publish(path, consumer) {
+    if(__DEV__) {
+      path.should.be.an.instanceOf(path);
+      consumer.should.be.an.instanceof(Remutable.Consumer);
+    }
     throw new TypeError('Server.Adapter should implement publish(path: String, remutable: Remutable): void 0');
   }
 
-  onConnection(fn, lifespan) {
+  onConnection(accept, lifespan) {
+    if(__DEV__) {
+      accept.should.be.a.Function;
+      lifespan.should.have.property('then').which.is.a.Function;
+    }
     throw new TypeError('Server.Adapter should implement onConnection(fn: Function(client: Duplex): void 0, lifespan: Promise): void 0');
   }
 }
@@ -203,7 +210,7 @@ class Event {
 
   static fromJSON(json) {
     const { t, j } = JSON.parse(json);
-    return Events._[t].fromJS(j);
+    return Event._[t].fromJS(j);
   }
 }
 
@@ -262,9 +269,11 @@ class Delete extends Event {
   }
 }
 
-Events.Update = Events._[Update.t()] = Update;
-Events.Delete = Events._[Event.t()] = Delete;
+Event._ = {};
+Event.Update = Event._[Update.t()] = Update;
+Event.Delete = Event._[Delete.t()] = Delete;
 
-Server.Events = Events;
+Server.Event = Event;
+Server.Adapter = Adapter;
 
 module.exports = Server;

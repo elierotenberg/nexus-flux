@@ -1,5 +1,17 @@
 "use strict";
 
+var _inherits = function (child, parent) {
+  child.prototype = Object.create(parent && parent.prototype, {
+    constructor: {
+      value: child,
+      enumerable: false,
+      writable: true,
+      configurable: true
+    }
+  });
+  if (parent) child.__proto__ = parent;
+};
+
 require("6to5/polyfill");
 var _ = require("lodash");
 var should = require("should");
@@ -13,256 +25,430 @@ if (__DEV__) {
 }
 var Remutable = require("remutable");
 var Patch = Remutable.Patch;
+var _ref = require("stream");
+
+var Duplex = _ref.Duplex;
+
+
 var Store = require("./Store");
 var Action = require("./Action");
 var Server = require("./Server");
 
-var _Adapter = undefined;
+var INT_MAX = 9007199254740992;
 
-var Client = function Client(adapter) {
-  if (__DEV__) {
-    adapter.should.be.an.instanceOf(_Adapter);
-  }
-  this._adapter = adapter;
-  this._stores = {};
-  this._actions = {};
-};
+var Client = (function () {
+  var _Duplex = Duplex;
+  var Client = function Client(adapter, clientID) {
+    var _this = this;
+    if (clientID === undefined) clientID = _.uniqueId("Client" + _.random(1, INT_MAX - 1));
+    return (function () {
+      if (__DEV__) {
+        adapter.should.be.an.instanceOf(Client.Adapter);
+        clientID.should.be.a.String;
+      }
 
-Client.prototype.within = function (lifespan) {
-  var _this = this;
-  return {
-    createStore: function (path) {
-      return _this.createStore(lifespan, path);
-    },
-    createAction: function (path) {
-      return _this.createAction(lifespan, path);
-    } };
-};
+      _Duplex.call(_this, {
+        allowHalfOpen: false,
+        objectMode: true });
 
-Client.prototype.fetch = function (path) {
-  return this._adapter.fetch(path);
-};
+      _.bindAll(_this);
 
-Client.prototype.createStore = function (lifespan, path) {
-  var _this2 = this;
-  if (this._stores[path] === void 0) {
-    this._stores[path] = {
-      engine: new Store.Engine(),
-      count: 0 };
-    this._adapter.registerStore(path, this._stores[path].engine.createProducer());
-  }
-  this._stores[path].count = this._stores[path].count + 1;
-  lifespan.then(function () {
-    return _this2._uncreateStore(path);
-  });
-  return this._stores[path].engine.createConsumer(lifespan);
-};
+      Object.assign(_this, {
+        clientID: clientID,
+        lifespan: new Promise(function (resolve) {
+          return _this.resolve = resolve;
+        }),
+        _stores: {},
+        _refetching: {},
+        _actions: {},
+        _fetch: adapter.fetch });
 
-Client.prototype._uncreateStore = function (path) {
-  if (__DEV__) {
-    this._stores.should.have.property(path);
-    this._stores[path].count.should.be.above(0);
-  }
-  this._stores[path].count = this._stores[path].count - 1;
-  if (this._stores[path].count === 0) {
-    this._adapter.unregisterStore(path);
-    delete this._stores[path];
-  }
-};
+      adapter.pipe(_this, { end: true }); // adapter.write -> this.read; if adapter.end(), then this.on('end')
+      _this.pipe(adapter, { end: true }); // this.write -> adapter.read; if this.end(), then adapter.on('end')
 
-Client.prototype.createAction = function (lifespan, path) {
-  var _this3 = this;
-  if (this._actions[path] === void 0) {
-    (function () {
-      var actionResolve = undefined;
-      var actionLifespan = new Promise(function (resolve) {
-        return actionResolve = resolve;
+      _this.on("data", _this._receive);
+      _this._send(new Client.Event.Open({ clientID: clientID }));
+
+      var finished = false;
+
+      _this.on("end", function () {
+        if (!finished) {
+          _this._send(new Client.Event.Close());
+        }
       });
-      _this3._actions[path] = {
-        engine: new Action.Engine(),
-        count: 0,
-        resolve: actionResolve };
-      _this3._adapter.registerAction(path, _this3._actions[path].engine.createConsumer(actionLifespan));
+
+      _this.on("finish", function () {
+        finished = true;
+        _this.resolve();
+      });
     })();
-  }
-  this._actions[path].count = this._actions[path].count + 1;
-  lifespan.then(function () {
-    return _this3._uncreateAction(path);
-  });
-  return this._actions[path].engine.createProducer();
-};
+  };
 
-Client.prototype._uncreateAction = function (path) {
-  if (__DEV__) {
-    this._actions.should.have.property(path);
-    this._actions[path].count.should.be.above(0);
-  }
-  this._actions[path].count = this._actions[path].count - 1;
-  if (this._actions[path].count === 0) {
-    this._adapter.unregisterAction(path);
-    this._actions[path].resolve();
-    delete this._actions[path];
-  }
-};
+  _inherits(Client, _Duplex);
 
-var Adapter = function Adapter(fetch, fromServer, toServer) {
-  if (__DEV__) {
-    fetch.should.be.a.Function;
-    fromServer.should.have.property("addListener").which.is.a.Function;
-    fromServer.should.have.property("removeListener").which.is.a.Function;
-    toServer.should.have.property("emit").which.is.a.Function;
-  }
-  _.bindAll(this);
-  this._fetch = fetch;
-  this._fromServer = fromServer;
-  this._toServer = toServer;
-  this._stores = {};
-  this._actions = {};
-  this._fetching = {};
-  this._fromServer.on(Server.Events.Patch, this.receivePatch).on(Server.Events.Delete, this.receiveDelete);
-};
-
-Adapter.prototype.registerStore = function (path, producer) {
-  if (__DEV__) {
-    path.should.be.a.String;
-    producer.should.be.an.instanceOf(Store.Producer);
-    this._stores.should.not.have.property(path);
-  }
-  this._stores[path] = producer;
-  this._patches[path] = {};
-  this._toServer.emit(Client.Events.Subscribe, path);
-};
-
-Adapter.prototype.unregisterStore = function (path) {
-  if (__DEV__) {
-    path.should.be.a.String;
-    this._stores.should.have.property(path);
-  }
-  this._toServer.emit(Client.Events.Unsbuscribe, path);
-  delete this._patches[path];
-  delete this._stores[path];
-};
-
-Adapter.prototype.registerAction = function (path, consumer) {
-  var _this4 = this;
-  if (__DEV__) {
-    path.should.be.a.String;
-    consumer.should.be.an.instanceOf(Action.Consumer);
-    this._actions.should.not.have.property(path);
-  }
-  this._actions[path] = consumer;
-  consumer.onDispatch(function (params) {
-    return _this4._toServer.emit(Client.Events.Dispatch, path, params);
-  });
-};
-
-Adapter.prototype.unregisterAction = function (path) {
-  if (__DEV__) {
-    path.should.be.a;String;
-    this._actions.should.have.property(path);
-  }
-  delete this._actions[path];
-};
-
-Adapter.prototype.receivePatch = function (path, patch) {
-  if (__DEV__) {
-    path.should.be.a.String;
-    patch.should.be.an.instanceOf(Patch);
-  }
-  if (this._stores[path] === void 0) {
-    // dismiss if we are not interested anymore
-    return;
-  }
-  if (this._stores[path].remutableConsumer.hash === patch.source) {
-    // if the patch match our current version, apply it
-    return this._stores[path].update(patch);
-  }
-  if (this._refetching[path] === void 0) {
-    // if we are not already refetching a fresher version, do it
-    this.refetch(path, patch.target);
-  } else {
-    // if we are already fetching, store the patch for later use
-    this._patches[path][patch.source] = patch;
-  }
-};
-
-Adapter.prototype.receiveDelete = function (path) {
-  if (__DEV__) {
-    path.should.be.a.String;
-  }
-  if (this._stores[path] === void 0) {
-    return;
-  }
-  this._stores[path]["delete"]();
-};
-
-Adapter.prototype.refetch = function (path, hash) {
-  var _this5 = this;
-  if (__DEV__) {
-    this._refetching.should.not.have.property(path);
-  }
-  if (this._stores[path] === void 0) {
-    return;
-  }
-  this._refetching[path] = this._fetch(path, hash).then(function (remutable) {
-    return _this5.receiveRefetch(path, remutable);
-  });
-};
-
-Adapter.prototype.receiveRefetch = function (path, remutable) {
-  if (__DEV__) {
-    path.should.be.a.String;
-    (remutable instanceof Remutable || remutable instanceof Remutable.Consumer).should.be.true;
-  }
-  if (this._stores[path] === void 0) {
-    return;
-  }
-  if (this._stores[path].remutableConsumer.version > remutable.version) {
-    return;
-  }
-  var diff = Patch.fromDiff(this._stores[path].remutableConsumer, remutable);
-  this._patches[path][diff.source] = diff;
-  this.applyAllAvailablePatches(path);
-};
-
-Adapter.prototype.applyAllAvailablePatches = function (path) {
-  var _this6 = this;
-  if (__DEV__) {
-    path.should.be.a.String;
-    this._stores.should.have.property(path);
-  }
-  var hash = this._stores[path].remutableConsumer.hash;
-  var patch = null;
-  // recursively combine all matching patches into one big patch
-  while (this._patches[path][hash] !== void 0) {
-    var nextPatch = this._patches[path][hash];
-    delete this._patches[path][hash];
-    if (patch === null) {
-      patch = nextPatch;
-    } else {
-      patch = Patch.combine(patch, nextPatch);
+  Client.prototype.Store = function (path, lifespan) {
+    var _this2 = this;
+    if (__DEV__) {
+      path.should.be.a.String;
+      lifespan.should.have.property("then").which.is.a.Function;
     }
-    hash = patch.target;
-  }
-  // delete patches to older versions
-  var version = patch.t.v;
-  _.each(this._patches[path], function (patch, hash) {
-    if (patch.t.v < version) {
-      delete _this6._patches[path][hash];
+    var _ref2 = this._stores[path] || (function () {
+      _this2._send(new Client.Event.Subscribe({ path: path }));
+      var _engine = new Store.Engine();
+      return _this2._stores[path] = {
+        engine: _engine,
+        producer: _engine.createProducer(),
+        patches: {},
+        refetching: false };
+    })();
+    var engine = _ref2.engine;
+    var consumer = engine.createConsumer();
+    consumer.lifespan.then(function () {
+      // Stores without consumers are removed
+      if (engine.consumers === 0) {
+        engine.release();
+        _this2._send(new Client.Event.Unsbuscribe({ path: path }));
+        delete _this2._stores[path];
+      }
+    });
+    lifespan.then(consumer.release);
+    return consumer;
+  };
+
+  Client.prototype.Action = function (path, lifespan) {
+    var _this3 = this;
+    if (__DEV__) {
+      path.should.be.a.String;
+      lifespan.should.have.property("then").which.is.a.Function;
     }
-  });
+    var _ref3 = this._actions[path] || (function () {
+      var _engine2 = new Action.Engine();
+      return _this3._actions[path] = {
+        engine: _engine2,
+        consumer: _engine2.createConsumer().onDispatch(function (params) {
+          return _this3._send(new Client.Event.Dispatch({ path: path, params: params }));
+        }) };
+    })();
+    var engine = _ref3.engine;
+    var producer = engine.createProducer();
+    producer.lifespan.then(function () {
+      // Actions without producers are removed
+      if (engine.producers === 0) {
+        engine.release();
+        delete _this3._actions[path];
+      }
+    });
+    lifespan.then(producer.release);
+    return producer;
+  };
+
+  Client.prototype._send = function (ev) {
+    if (__DEV__) {
+      ev.should.be.an.instanceOf(Client.Event);
+    }
+    this.write(ev);
+  };
+
+  Client.prototype._receive = function (ev) {
+    if (__DEV__) {
+      ev.should.be.an.instanceOf(Server.Event);
+    }
+    if (ev instanceof Server.Event.Update) {
+      return this._update(ev.path, ev.patch);
+    }
+    if (ev instanceof Server.Event.Delete) {
+      return this._delete(ev.path);
+    }
+  };
+
+  Client.prototype._update = function (path, patch) {
+    if (__DEV__) {
+      path.should.be.a.String;
+      patch.should.be.an.instanceOf(Patch);
+    }
+    if (this._stores[path] === void 0) {
+      // dismiss if we are not interested anymore
+      return;
+    }
+    var producer = this._stores[path].producer;
+    var patches = this._stores[path].patches;
+    var refetching = this._stores[path].refetching;
+    var hash = producer.remutableConsumer.hash;
+    var source = patch.source;
+    var target = patch.target;
+    if (hash === source) {
+      // if the patch applies to our current version, apply it now
+      return producer.update(patch);
+    } // we don't have a recent enough version, we need to refetch
+    if (!refetching) {
+      // if we arent already refetching, request a newer version (atleast >= target)
+      return this._refetch(path, target);
+    } // if we are already refetching, store the patch for later
+    patches[source] = patch;
+  };
+
+  Client.prototype._delete = function (path) {
+    if (__DEV__) {
+      path.should.be.a.String;
+    }
+    if (this._stores[path] === void 0) {
+      return;
+    }
+    var producer = this._stores[path].producer;
+    producer["delete"]();
+  };
+
+  Client.prototype._refetch = function (path, target) {
+    var _this4 = this;
+    if (__DEV__) {
+      path.should.be.a.String;
+      target.should.be.a.String;
+      this._stores.should.have.property(path);
+    }
+    this._stores[path].refetching = true;
+    this.fetch(path, target).then(function (remutable) {
+      return _this4._upgrade(path, remutable);
+    });
+  };
+
+  Client.prototype._upgrade = function (path, next) {
+    if (__DEV__) {
+      path.should.be.a.String;
+      (next instanceof Remutable || next instanceof Remutable.Consumer).should.be.true;
+    }
+    if (this._stores[path] === void 0) {
+      // not interested anymore
+      return;
+    }
+    var producer = this._stores[path].producer;
+    var patches = this._stores[path].patches;
+    var prev = producer.remutableConsumer;
+    if (prev.version > next.version) {
+      // we already have a more recent version
+      return;
+    }
+    // squash patches to create a single patch
+    var squash = Patch.fromDiff(prev, next);
+    while (patches[squash.target] !== void 0) {
+      squash = Patch.combine(squash, patches[squash.target]);
+    }
+    var version = squash.t.v;
+    // clean old patches
+    _.each(patches, function (_ref4, source) {
+      var t = _ref4.t;
+      if (t.v <= version) {
+        delete patches[source];
+      }
+    });
+    producer.update(squash);
+  };
+
+  return Client;
+})();
+
+var Adapter = (function () {
+  var _Duplex2 = Duplex;
+  var Adapter = function Adapter() {
+    if (__DEV__) {
+      this.should.have.property("fetch").which.is.a.Function.and.is.not.exactly(Adapter.prototype.fetch);
+    }
+    _Duplex2.call(this, {
+      allowHalfOpen: false,
+      objectMode: true });
+  };
+
+  _inherits(Adapter, _Duplex2);
+
+  Adapter.prototype.fetch = function (path, hash) {
+    if (hash === undefined) hash = null;
+    if (__DEV__) {
+      path.should.be.a.String;
+      (_.isNull(hash) || _.isString(hash)).should.be.true;
+    }
+    throw new TypeError("Client.Adapter should implement fetch(path: String): Promise(Remutable)");
+  };
+
+  return Adapter;
+})();
+
+var Event = function Event() {
   if (__DEV__) {
-    _.size(this._patches[path]).should.be.exactly(0);
+    this.should.have.property("toJS").which.is.a.Function;
+    this.constructor.should.have.property("fromJS").which.is.a.Function;
   }
-  this._stores[path].update(patch);
+  Object.assign(this, {
+    _json: null,
+    _js: null });
 };
 
-_Adapter = Adapter;
+Event.prototype.toJS = function () {
+  if (this._js === null) {
+    this._js = {
+      t: this.constructor.t(),
+      j: this._toJS() };
+  }
+  return this._js;
+};
+
+Event.prototype.toJSON = function () {
+  if (this._json === null) {
+    this._json = JSON.stringify(this.toJS());
+  }
+  return this._json;
+};
+
+Event.fromJSON = function (json) {
+  var _ref5 = JSON.parse(json);
+
+  var _t = _ref5.t;
+  var j = _ref5.j;
+  return Event._[_t].fromJS(j);
+};
+
+var Open = (function () {
+  var _Event = Event;
+  var Open = function Open(_ref6) {
+    var clientID = _ref6.clientID;
+    if (__DEV__) {
+      clientID.should.be.a.String;
+    }
+    Object.assign(this, { clientID: clientID });
+  };
+
+  _inherits(Open, _Event);
+
+  Open.prototype._toJS = function () {
+    return { c: this.clientID };
+  };
+
+  Open.t = function () {
+    return "o";
+  };
+
+  Open.fromJS = function (_ref7) {
+    var c = _ref7.c;
+    return new Open(c);
+  };
+
+  return Open;
+})();
+
+var Close = (function () {
+  var _Event2 = Event;
+  var Close = function Close() {
+    if (_Event2) {
+      _Event2.apply(this, arguments);
+    }
+  };
+
+  _inherits(Close, _Event2);
+
+  Close.prototype._toJS = function () {
+    return {};
+  };
+
+  Close.t = function () {
+    return "c";
+  };
+
+  Close.fromJS = function () {
+    return new Close();
+  };
+
+  return Close;
+})();
+
+var Subscribe = (function () {
+  var _Event3 = Event;
+  var Subscribe = function Subscribe(path) {
+    if (__DEV__) {
+      path.should.be.a.String;
+    }
+    Object.assign(this, { path: path });
+  };
+
+  _inherits(Subscribe, _Event3);
+
+  Subscribe.prototype._toJS = function () {
+    return { p: this.patch };
+  };
+
+  Subscribe.t = function () {
+    return "s";
+  };
+
+  Subscribe.fromJS = function (_ref8) {
+    var p = _ref8.p;
+    return new Subscribe(p);
+  };
+
+  return Subscribe;
+})();
+
+var Unsbuscribe = (function () {
+  var _Event4 = Event;
+  var Unsbuscribe = function Unsbuscribe(path) {
+    if (__DEV__) {
+      path.should.be.a.String;
+    }
+    Object.assign(this, { path: path });
+  };
+
+  _inherits(Unsbuscribe, _Event4);
+
+  Unsbuscribe.prototype._toJS = function () {
+    return { p: this.patch };
+  };
+
+  Unsbuscribe.t = function () {
+    return "u";
+  };
+
+  Unsbuscribe.fromJS = function (_ref9) {
+    var p = _ref9.p;
+    return new Unsbuscribe(p);
+  };
+
+  return Unsbuscribe;
+})();
+
+var Dispatch = (function () {
+  var _Event5 = Event;
+  var Dispatch = function Dispatch(path, params) {
+    if (__DEV__) {
+      path.should.be.a.String;
+      params.should.be.an.Object;
+    }
+    Object.assign(this, { path: path, params: params });
+  };
+
+  _inherits(Dispatch, _Event5);
+
+  Dispatch.prototype._toJS = function () {
+    return { p: this.path, a: this.params };
+  };
+
+  Dispatch.t = function () {
+    return "d";
+  };
+
+  Dispatch.fromJS = function (_ref10) {
+    var p = _ref10.p;
+    var a = _ref10.a;
+    return new Dispatch(p, a);
+  };
+
+  return Dispatch;
+})();
+
+Event._ = {};
+Event.Open = Event._[Open.t()] = Open;
+Event.Close = Event._[Close.t()] = Close;
+Event.Subscribe = Event._[Subscribe.t()] = Subscribe;
+Event.Unsbuscribe = Event._[Unsbuscribe.t()] = Unsbuscribe;
+Event.Dispatch = Event._[Dispatch.t()] = Dispatch;
 
 Client.Adapter = Adapter;
-Client.Events = {
-  Subscribe: "s",
-  Unsbuscribe: "u",
-  Dispatch: "d" };
+Client.Event = Event;
 
 module.exports = Client;

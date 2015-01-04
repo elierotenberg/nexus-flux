@@ -6,64 +6,83 @@ const Store = require('./Store');
 const Action = require('./Action');
 const Server = require('./Server');
 
-let _Link;
-
 const INT_MAX = 9007199254740992;
 
-// Client is a Duplex stream:
-// - Writable is a stream of Server.Event objects
-// - Readable is a stream of Client.Event objects
-class Client extends Duplex {
+const ClientDuplex = through2.ctor({ objectMode: true, allowHalfOpen: false },
+  function receive(ev, enc, done) { // server send a client (through adapter)
+    if(__DEV__) {
+      ev.should.be.an.instanceOf(Server.Event);
+    }
+    if(ev instanceof Server.Event.Update) {
+      this._update(ev.path, ev.patch);
+      return done(null);
+    }
+    if(ev instanceof Server.Event.Delete) {
+      this._delete(ev.path);
+      return done(null);
+    }
+    done(new TypeError(`Unknown event: ${ev}`));
+  },
+  function flush(done) { // server is done sending (through adapter)
+    this.push(new Client.Event.Close());
+    this.resolve();
+    done(null);
+  }
+);
+
+const isAdapter(adapter) { // client adapter ducktyping
+  // an adapter is just a Duplex stream which implements 'fetch'
+  return (adapter instanceof Duplex) && _.isFunction(adapter.fetch);
+}
+
+class Client extends ClientDuplex {
   constructor(adapter, clientID = _.uniqueId(`Client${_.random(1, INT_MAX - 1)}`)) {
     if(__DEV__) {
-      adapter.should.be.an.instanceOf(Client.Adapter);
+      isAdapter(adapter).should.be.true;
       clientID.should.be.a.String;
     }
-
-    super({
-      allowHalfOpen: true,
-      objectMode: true,
-    });
-
+    super();
     _.bindAll(this);
 
     Object.assign(this, {
       clientID,
-      lifespan: new Promise((resolve) => this.on('end', resolve)),
+      lifespan: new Promise((resolve) => this.resolve = resolve),
       _stores: {},
       _refetching: {},
       _actions: {},
       _fetch: adapter.fetch,
     });
 
-    adapter.pipe(this);
-    this.pipe(adapter);
-
-    this.on('data', this._receive);
-    this._send(new Client.Event.Open({ clientID }));
-    this.lifespan.then(() => this._send(new Client.Event.Close()));
+    adapter.pipe(this); // adapter sends us server events
+    this.pipe(adapter); // we send adapter client events
+    this.push(new Client.Event.Open({ clientID }));
   }
 
-  Store(path, lifespan) {
+  Store(path, lifespan, autofetch = true) { // returns a Store consumer
     if(__DEV__) {
       path.should.be.a.String;
       lifespan.should.have.property('then').which.is.a.Function;
     }
-    const { engine } = this._stores[path] || (() => {
-      this._send(new Client.Event.Subscribe({ path }));
+    const { engine } = this._stores[path] || (() => { // if we don't know this store yet, then subscribe
+      this.push(new Client.Event.Subscribe({ path }));
       const engine = new Store.Engine();
-      return this._stores[path] = {
+      this._stores[path] = {
         engine,
         producer: engine.createProducer(),
-        patches: {},
+        patches: {},         // initially we have no pending patches and we are not refetching
         refetching: false,
       };
+      // refetch immediatly unless we are explicitly told not to
+      if(autofetch) {
+        this._refetch(path, null);
+      }
+      return this._stores[path];
     })();
     const consumer = engine.createConsumer();
     consumer.lifespan.then(() => { // Stores without consumers are removed
-      if(engine.consumers === 0) {
+      if(engine.consumers === 0) { // if we don't have anymore consumers, then unsubscribe
         engine.release();
-        this._send(new Client.Event.Unsbuscribe({ path }));
+        this.push(new Client.Event.Unsbuscribe({ path }));
         delete this._stores[path];
       }
     });
@@ -71,47 +90,28 @@ class Client extends Duplex {
     return consumer;
   }
 
-  Action(path, lifespan) {
+  Action(path, lifespan) { // returns an Action producer
     if(__DEV__) {
       path.should.be.a.String;
       lifespan.should.have.property('then').which.is.a.Function;
     }
-    const { engine } = this._actions[path] || (() => {
+    const { engine } = this._actions[path] || (() => { // if we don't know this action yet, start observing it
       const engine = new Action.Engine();
       return this._actions[path] = {
         engine,
         consumer: engine.createConsumer()
-        .onDispatch((params) => this._send(new Client.Event.Dispatch({ path, params }))),
+        .onDispatch((params) => this.push(new Client.Event.Dispatch({ path, params }))),
       };
     })();
     const producer = engine.createProducer();
     producer.lifespan.then(() => { // Actions without producers are removed
-      if(engine.producers === 0) {
+      if(engine.producers === 0) { // when we don't have anymore producers, we stop observing it
         engine.release();
         delete this._actions[path];
       }
     });
     lifespan.then(producer.release);
     return producer;
-  }
-
-  _send(ev) {
-    if(__DEV__) {
-      ev.should.be.an.instanceOf(Client.Event);
-    }
-    this.write(ev);
-  }
-
-  _receive(ev) {
-    if(__DEV__) {
-      ev.should.be.an.instanceOf(Server.Event);
-    }
-    if(ev instanceof Server.Event.Update) {
-      return this._update(ev.path, ev.patch);
-    }
-    if(ev instanceof Server.Event.Delete) {
-      return this._delete(ev.path);
-    }
   }
 
   _update(path, patch) {
@@ -152,7 +152,8 @@ class Client extends Duplex {
       this._stores.should.have.property(path);
     }
     this._stores[path].refetching = true;
-    this.fetch(path, target).then((remutable) => this._upgrade(path, remutable));
+    // we use the fetch method from the adapter
+    this._fetch(path, target).then((remutable) => this._upgrade(path, remutable));
   }
 
   _upgrade(path, next) {
@@ -181,61 +182,6 @@ class Client extends Duplex {
       }
     });
     producer.update(squash);
-  }
-}
-
-class Adapter extends Duplex {
-  constructor() {
-    if(__DEV__) {
-      this.should.have.property('fetch').which.is.a.Function.and.is.not.exactly(Adapter.prototype.fetch);
-    }
-  }
-
-  fetch(path) {
-    throw new TypeError('Client.Adapter should implement fetch(path: String): Promise(Remutable)');
-  }
-}
-
-class Event {
-  constructor() {
-    this._s = null;
-  }
-
-  get t() {
-    return null;
-  }
-
-  get p() {
-    return {};
-  }
-
-  stringify() {
-    if(this._s === null) {
-      this._s = JSON.stringify({ t: this.t, p: this.p });
-    }
-    return this._s;
-  }
-
-  static parse(json) {
-    const { t, p } = JSON.parse(json);
-    if(__DEV__) {
-      Event._shortName.should.have.ownProperty(json);
-    }
-    return new Event._shortName[t](p);
-  }
-
-  static _register(shortName, longName, Ctor) {
-    if(__DEV__) {
-      shortName.should.be.a.String;
-      shortName.length.should.be.exactly(1);
-      longName.should.be.a.String;
-      Event._shortName.should.not.have.property(shortName);
-      Event.should.not.have.property(longName);
-      Ctor.should.be.a.Function;
-    }
-    Event[longName] = Ctor;
-    Event._shortName[shortName] = Ctor;
-    Ctor.prototype.t = shortName;
   }
 }
 
@@ -270,12 +216,12 @@ class Event {
 
   static fromJSON(json) {
     const { t, j } = JSON.parse(json);
-    return Events._[t].fromJS(j);
+    return Event._[t].fromJS(j);
   }
 }
 
 class Open extends Event {
-  constructor(clientID) {
+  constructor({ clientID }) {
     if(__DEV__) {
       clientID.should.be.a.String;
     }
@@ -361,7 +307,7 @@ class Dispatch extends Event {
   }
 
   _toJS() {
-    return { p: this.path, a: params };
+    return { p: this.path, a: this.params };
   }
 
   static t() {
@@ -372,14 +318,11 @@ class Dispatch extends Event {
     return new Dispatch(p, a);
   }
 }
-
+Event._ = {};
 Event.Open        = Event._[Open.t()]         = Open;
 Event.Close       = Event._[Close.t()]        = Close;
 Event.Subscribe   = Event._[Subscribe.t()]    = Subscribe;
 Event.Unsbuscribe = Event._[Unsbuscribe.t()]  = Unsbuscribe;
 Event.Dispatch    = Event._[Dispatch.t()]     = Dispatch;
 
-Client.Adapter = Adapter;
-Client.Event = Event;
-
-module.exports = Client;
+module.exports = Object.assign(Client, { Event, isAdapter });
