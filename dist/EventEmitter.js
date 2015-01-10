@@ -1,6 +1,5 @@
 "use strict";
 
-var _slice = Array.prototype.slice;
 var _toArray = function (arr) {
   return Array.isArray(arr) ? arr : Array.from(arr);
 };
@@ -15,12 +14,13 @@ var __BROWSER__ = typeof window === "object";
 var __NODE__ = !__BROWSER__;
 if (__DEV__) {
   Promise.longStackTraces();
+  Error.stackTraceLimit = Infinity;
 }
 
 // My custom implementation of EventEmitter, with fast & easy listener removal for when tons of listeners are set.
-var EventEmitter = function EventEmitter(debug) {
+var EventEmitter = function EventEmitter() {
   var _this = this;
-  if (debug === undefined) debug = __DEV__;
+  var debug = arguments[0] === undefined ? __DEV__ : arguments[0];
   return (function () {
     _this._listeners = {};
     _this._debug = debug;
@@ -60,14 +60,18 @@ EventEmitter.prototype._removeListener = function (ev, ln) {
 };
 
 EventEmitter.prototype.emit = function (ev) {
-  var args = _slice.call(arguments, 1);
+  var args = [];
+
+  for (var _key = 1; _key < arguments.length; _key++) {
+    args[_key - 1] = arguments[_key];
+  }
 
   if (__DEV__) {
     ev.should.be.a.String;
   }
   if (this._listeners[ev] !== void 0) {
     _.each(this._listeners[ev], function (fn) {
-      return fn.apply(null, _toArray(args));
+      return fn.apply(undefined, _toArray(args));
     });
   } else if (this._debug) {
     console.warn("Emitting event " + ev + " " + args + " without listeners, this may be a bug.");

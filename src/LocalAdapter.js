@@ -1,9 +1,9 @@
-const Remutable = require('remutable');
-const through = require('through2');
-const { EventEmitter } = require('events');
+import Remutable from 'remutable';
+import through from 'through2';
+import { EventEmitter } from 'events';
 
-const Client = require('./Client');
-const Server = require('./Server');
+import Client from './Client';
+import Server from './Server';
 
 // Client -> ClientAdapter -> Link -> Server
 // Server -> Link -> ClientAdapter -> Client
@@ -37,7 +37,7 @@ class ClientAdapter extends ClientAdapterDuplex {
     super(); // will be piped to and from the client
     _.bindAll(this);
     this._buffer = state.buffer;
-    this.link = through.obj(function receiveFromServer(serverEvent, enc, done) {
+    this.link = through.obj((serverEvent, enc, done) => { // receive from server
       try {
         if(__DEV__) {
           serverEvent.should.be.an.instanceOf(Server.Event);
@@ -46,8 +46,9 @@ class ClientAdapter extends ClientAdapterDuplex {
       catch(err) {
         return done(err);
       }
-      return this._sendToClient(serverEvent);
-    }); // will be pipe to and from server
+      this._sendToClient(serverEvent);
+      return done(null);
+    }); // will be pipe to and from serverq
     state.server.connect(this.link); // immediatly connect
   }
 
@@ -56,7 +57,7 @@ class ClientAdapter extends ClientAdapterDuplex {
       if(__DEV__) {
         path.should.be.a.String;
         (_.isNull(hash) || _.isString(hash)).should.be.true;
-        this._buffer.should.have.property('hash');
+        this._buffer.should.have.property(path);
       }
       return this._buffer[path];
     });
@@ -116,7 +117,7 @@ class ServerAdapter extends Server.Adapter {
 
 _ServerAdapter = ServerAdapter;
 
-module.exports = {
+export default {
   Client: ClientAdapter,
   Server: ServerAdapter,
 };

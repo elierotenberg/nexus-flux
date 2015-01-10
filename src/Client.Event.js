@@ -71,7 +71,7 @@ class Close extends Event {
 }
 
 class Subscribe extends Event {
-  constructor(path) {
+  constructor({ path }) {
     if(__DEV__) {
       path.should.be.a.String;
     }
@@ -92,8 +92,8 @@ class Subscribe extends Event {
   }
 }
 
-class Unsbuscribe extends Event {
-  constructor(path) {
+class Unsubscribe extends Event {
+  constructor({ path }) {
     if(__DEV__) {
       path.should.be.a.String;
     }
@@ -110,12 +110,12 @@ class Unsbuscribe extends Event {
   }
 
   static fromJS({ p }) {
-    return new Unsbuscribe(p);
+    return new Unsubscribe(p);
   }
 }
 
 class Dispatch extends Event {
-  constructor(path, params) {
+  constructor({ path, params }) {
     if(__DEV__) {
       path.should.be.a.String;
       params.should.be.an.Object;
@@ -141,7 +141,7 @@ Event._ = {};
 Event.Open        = Event._[Open.t()]         = Open;
 Event.Close       = Event._[Close.t()]        = Close;
 Event.Subscribe   = Event._[Subscribe.t()]    = Subscribe;
-Event.Unsbuscribe = Event._[Unsbuscribe.t()]  = Unsbuscribe;
+Event.Unsubscribe = Event._[Unsubscribe.t()]  = Unsubscribe;
 Event.Dispatch    = Event._[Dispatch.t()]     = Dispatch;
 
-module.exports = { Event };
+export default { Event };

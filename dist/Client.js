@@ -1,6 +1,31 @@
 "use strict";
 
+var _get = function get(object, property, receiver) {
+  var desc = Object.getOwnPropertyDescriptor(object, property);
+
+  if (desc === undefined) {
+    var parent = Object.getPrototypeOf(object);
+
+    if (parent === null) {
+      return undefined;
+    } else {
+      return get(parent, property, receiver);
+    }
+  } else if ("value" in desc && desc.writable) {
+    return desc.value;
+  } else {
+    var getter = desc.get;
+    if (getter === undefined) {
+      return undefined;
+    }
+    return getter.call(receiver);
+  }
+};
+
 var _inherits = function (child, parent) {
+  if (typeof parent !== "function" && parent !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof parent);
+  }
   child.prototype = Object.create(parent && parent.prototype, {
     constructor: {
       value: child,
@@ -10,6 +35,10 @@ var _inherits = function (child, parent) {
     }
   });
   if (parent) child.__proto__ = parent;
+};
+
+var _interopRequire = function (obj) {
+  return obj && (obj["default"] || obj);
 };
 
 require("6to5/polyfill");
@@ -22,15 +51,22 @@ var __BROWSER__ = typeof window === "object";
 var __NODE__ = !__BROWSER__;
 if (__DEV__) {
   Promise.longStackTraces();
+  Error.stackTraceLimit = Infinity;
 }
-var Remutable = require("remutable");
-var Patch = Remutable.Patch;
-var through = require("through2");
+var Remutable = _interopRequire(require("remutable"));
 
-var Store = require("./Store");
-var Action = require("./Action");
-var Server = require("./Server.Event"); // we just need this reference for typechecks
-var Event = require("./Client.Event").Event; // jshint ignore:line
+var Patch = Remutable.Patch;
+var through = _interopRequire(require("through2"));
+
+var Store = _interopRequire(require("./Store"));
+
+var Action = _interopRequire(require("./Action"));
+
+var Server = _interopRequire(require("./Server.Event"));
+
+// we just need this reference for typechecks
+var Event = require("./Client.Event").Event;
+
 
 var INT_MAX = 9007199254740992;
 
@@ -65,15 +101,15 @@ function isAdapter(adapter) {
 
 var Client = (function () {
   var _ClientDuplex = ClientDuplex;
-  var Client = function Client(adapter, clientID) {
+  var Client = function Client(adapter) {
     var _this = this;
-    if (clientID === undefined) clientID = _.uniqueId("Client" + _.random(1, INT_MAX - 1));
+    var clientID = arguments[1] === undefined ? _.uniqueId("Client" + _.random(1, INT_MAX - 1)) : arguments[1];
     return (function () {
       if (__DEV__) {
-        isAdapter(adapter).should.be.true;
+        isAdapter(adapter).should.be["true"];
         clientID.should.be.a.String;
       }
-      _ClientDuplex.call(_this);
+      _get(Object.getPrototypeOf(Client.prototype), "constructor", _this).call(_this);
       _.bindAll(_this);
 
       Object.assign(_this, {
@@ -84,7 +120,8 @@ var Client = (function () {
         _stores: {},
         _refetching: {},
         _actions: {},
-        _fetch: adapter.fetch });
+        _fetch: adapter.fetch,
+        _prefetched: null });
 
       adapter.pipe(_this); // adapter sends us server events
       _this.pipe(adapter); // we send adapter client events
@@ -95,9 +132,52 @@ var Client = (function () {
 
   _inherits(Client, _ClientDuplex);
 
-  Client.prototype.Store = function (path, lifespan, autofetch) {
+  Client.prototype["import"] = function (prefetched) {
+    if (__DEV__) {
+      prefetched.should.be.an.Object;
+      (this._prefetched === null).should.be["true"];
+    }
+    this._prefetched = _.mapValues(prefetched, function (js) {
+      return Remutable.fromJS(js);
+    });
+    return this;
+  };
+
+  Client.prototype["export"] = function () {
+    if (__DEV__) {
+      (this._prefetched !== null).should.be["true"];
+    }
+    return _.mapValues(this._stores, function (val) {
+      return val.remutable.toJS();
+    });
+  };
+
+  // example usage: client.settle('/todoList', '/userList'), client.settle(paths), client.settle().
+  Client.prototype.settle = function () {
     var _this2 = this;
-    if (autofetch === undefined) autofetch = true;
+    var stores = [];
+
+    for (var _key = 0; _key < arguments.length; _key++) {
+      stores[_key] = arguments[_key];
+    }
+
+    // wait for all the initialization Promise to be either fullfilled or rejected; paths can be either null/void 0 (all stores), a single string (1 store), or an array of stores
+    if (stores === void 0) {
+      stores = Object.keys(this._stores);
+    }
+    if (__DEV__) {
+      stores.should.be.an.Array;
+    }
+    if (_.isArray(stores[0])) {
+      stores = stores[0];
+    }
+    return Promise.settle(_.map(stores, function (path) {
+      return _this2._stores[path].initialized;
+    }));
+  };
+
+  Client.prototype.Store = function (path, lifespan) {
+    var _this3 = this;
     // returns a Store consumer
     if (__DEV__) {
       path.should.be.a.String;
@@ -105,18 +185,17 @@ var Client = (function () {
     }
     var _ref = this._stores[path] || (function () {
       // if we don't know this store yet, then subscribe
-      _this2.push(new Client.Event.Subscribe({ path: path }));
-      var _engine = new Store.Engine();
-      _this2._stores[path] = {
+      _this3.push(new Client.Event.Subscribe({ path: path }));
+      var prefetched = _this3._prefetched !== null && _this3._prefetched[path] !== void 0 ? _this3._prefetched[path] : null;
+      var _engine = new Store.Engine(prefetched);
+      var store = _this3._stores[path] = {
         engine: _engine,
         producer: _engine.createProducer(),
         patches: {}, // initially we have no pending patches and we are not refetching
-        refetching: false };
-      // refetch immediatly unless we are explicitly told not to
-      if (autofetch) {
-        _this2._refetch(path, null);
-      }
-      return _this2._stores[path];
+        refetching: false,
+        initialized: null };
+      store.initialized = _this3._refetch(path, prefetched ? prefetched.hash : null);
+      return _this3._stores[path];
     })();
     var engine = _ref.engine;
     var consumer = engine.createConsumer();
@@ -125,8 +204,8 @@ var Client = (function () {
       if (engine.consumers === 0) {
         // if we don't have anymore consumers, then unsubscribe
         engine.release();
-        _this2.push(new Client.Event.Unsbuscribe({ path: path }));
-        delete _this2._stores[path];
+        _this3.push(new Client.Event.Unsubscribe({ path: path }));
+        delete _this3._stores[path];
       }
     });
     lifespan.then(consumer.release);
@@ -134,7 +213,7 @@ var Client = (function () {
   };
 
   Client.prototype.Action = function (path, lifespan) {
-    var _this3 = this;
+    var _this4 = this;
     // returns an Action producer
     if (__DEV__) {
       path.should.be.a.String;
@@ -143,10 +222,10 @@ var Client = (function () {
     var _ref2 = this._actions[path] || (function () {
       // if we don't know this action yet, start observing it
       var _engine2 = new Action.Engine();
-      return _this3._actions[path] = {
+      return _this4._actions[path] = {
         engine: _engine2,
         consumer: _engine2.createConsumer().onDispatch(function (params) {
-          return _this3.push(new Client.Event.Dispatch({ path: path, params: params }));
+          return _this4.push(new Client.Event.Dispatch({ path: path, params: params }));
         }) };
     })();
     var engine = _ref2.engine;
@@ -156,7 +235,7 @@ var Client = (function () {
       if (engine.producers === 0) {
         // when we don't have anymore producers, we stop observing it
         engine.release();
-        delete _this3._actions[path];
+        delete _this4._actions[path];
       }
     });
     lifespan.then(producer.release);
@@ -175,12 +254,12 @@ var Client = (function () {
     var producer = this._stores[path].producer;
     var patches = this._stores[path].patches;
     var refetching = this._stores[path].refetching;
-    var hash = producer.remutableConsumer.hash;
+    var hash = producer.hash;
     var source = patch.source;
     var target = patch.target;
     if (hash === source) {
       // if the patch applies to our current version, apply it now
-      return producer.update(patch);
+      return producer.apply(patch);
     } // we don't have a recent enough version, we need to refetch
     if (!refetching) {
       // if we arent already refetching, request a newer version (atleast >= target)
@@ -201,32 +280,33 @@ var Client = (function () {
   };
 
   Client.prototype._refetch = function (path, target) {
-    var _this4 = this;
+    var _this5 = this;
     if (__DEV__) {
       path.should.be.a.String;
-      target.should.be.a.String;
+      (target === null || _.isString(target)).should.be["true"];
       this._stores.should.have.property(path);
     }
     this._stores[path].refetching = true;
     // we use the fetch method from the adapter
-    this._fetch(path, target).then(function (remutable) {
-      return _this4._upgrade(path, remutable);
+    return this._fetch(path, target).then(function (remutable) {
+      return _this5._upgrade(path, remutable);
     });
   };
 
   Client.prototype._upgrade = function (path, next) {
     if (__DEV__) {
       path.should.be.a.String;
-      (next instanceof Remutable || next instanceof Remutable.Consumer).should.be.true;
+      (next instanceof Remutable || next instanceof Remutable.Consumer).should.be["true"];
     }
     if (this._stores[path] === void 0) {
       // not interested anymore
       return;
     }
+    var engine = this._stores[path].engine;
     var producer = this._stores[path].producer;
     var patches = this._stores[path].patches;
-    var prev = producer.remutableConsumer;
-    if (prev.version > next.version) {
+    var prev = engine.remutable;
+    if (prev.version >= next.version) {
       // we already have a more recent version
       return;
     }
@@ -235,15 +315,15 @@ var Client = (function () {
     while (patches[squash.target] !== void 0) {
       squash = Patch.combine(squash, patches[squash.target]);
     }
-    var version = squash.t.v;
+    var version = squash.to.v;
     // clean old patches
     _.each(patches, function (_ref3, source) {
-      var t = _ref3.t;
-      if (t.v <= version) {
+      var to = _ref3.to;
+      if (to.v <= version) {
         delete patches[source];
       }
     });
-    producer.update(squash);
+    producer.apply(squash);
   };
 
   return Client;

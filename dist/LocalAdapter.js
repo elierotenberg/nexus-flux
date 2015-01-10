@@ -1,6 +1,31 @@
 "use strict";
 
+var _get = function get(object, property, receiver) {
+  var desc = Object.getOwnPropertyDescriptor(object, property);
+
+  if (desc === undefined) {
+    var parent = Object.getPrototypeOf(object);
+
+    if (parent === null) {
+      return undefined;
+    } else {
+      return get(parent, property, receiver);
+    }
+  } else if ("value" in desc && desc.writable) {
+    return desc.value;
+  } else {
+    var getter = desc.get;
+    if (getter === undefined) {
+      return undefined;
+    }
+    return getter.call(receiver);
+  }
+};
+
 var _inherits = function (child, parent) {
+  if (typeof parent !== "function" && parent !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof parent);
+  }
   child.prototype = Object.create(parent && parent.prototype, {
     constructor: {
       value: child,
@@ -10,6 +35,10 @@ var _inherits = function (child, parent) {
     }
   });
   if (parent) child.__proto__ = parent;
+};
+
+var _interopRequire = function (obj) {
+  return obj && (obj["default"] || obj);
 };
 
 require("6to5/polyfill");
@@ -22,16 +51,16 @@ var __BROWSER__ = typeof window === "object";
 var __NODE__ = !__BROWSER__;
 if (__DEV__) {
   Promise.longStackTraces();
+  Error.stackTraceLimit = Infinity;
 }
-var Remutable = require("remutable");
-var through = require("through2");
-var _ref = require("events");
+var Remutable = _interopRequire(require("remutable"));
 
-var EventEmitter = _ref.EventEmitter;
+var through = _interopRequire(require("through2"));
 
+var EventEmitter = require("events").EventEmitter;
+var Client = _interopRequire(require("./Client"));
 
-var Client = require("./Client");
-var Server = require("./Server");
+var Server = _interopRequire(require("./Server"));
 
 // Client -> ClientAdapter -> Link -> Server
 // Server -> Link -> ClientAdapter -> Client
@@ -56,15 +85,17 @@ var ClientAdapterDuplex = through.ctor({ objectMode: true, allowHalfOpen: false 
 var ClientAdapter = (function () {
   var _ClientAdapterDuplex = ClientAdapterDuplex;
   var ClientAdapter = function ClientAdapter(state) {
+    var _this = this;
     if (__DEV__) {
       state.should.be.an.Object;
       state.should.have.property("buffer").which.is.an.Object;
       state.should.have.property("server").which.is.an.instanceOf(_ServerAdapter);
     }
-    _ClientAdapterDuplex.call(this); // will be piped to and from the client
+    _get(Object.getPrototypeOf(ClientAdapter.prototype), "constructor", this).call(this); // will be piped to and from the client
     _.bindAll(this);
     this._buffer = state.buffer;
-    this.link = through.obj(function receiveFromServer(serverEvent, enc, done) {
+    this.link = through.obj(function (serverEvent, enc, done) {
+      // receive from server
       try {
         if (__DEV__) {
           serverEvent.should.be.an.instanceOf(Server.Event);
@@ -72,24 +103,25 @@ var ClientAdapter = (function () {
       } catch (err) {
         return done(err);
       }
-      return this._sendToClient(serverEvent);
-    }); // will be pipe to and from server
+      _this._sendToClient(serverEvent);
+      return done(null);
+    }); // will be pipe to and from serverq
     state.server.connect(this.link); // immediatly connect
   };
 
   _inherits(ClientAdapter, _ClientAdapterDuplex);
 
-  ClientAdapter.prototype.fetch = function (path, hash) {
-    var _this = this;
-    if (hash === undefined) hash = null;
+  ClientAdapter.prototype.fetch = function (path) {
+    var _this2 = this;
+    var hash = arguments[1] === undefined ? null : arguments[1];
     // ignore hash
     return Promise["try"](function () {
       if (__DEV__) {
         path.should.be.a.String;
-        (_.isNull(hash) || _.isString(hash)).should.be.true;
-        _this._buffer.should.have.property("hash");
+        (_.isNull(hash) || _.isString(hash)).should.be["true"];
+        _this2._buffer.should.have.property(path);
       }
-      return _this._buffer[path];
+      return _this2._buffer[path];
     });
   };
 
@@ -120,7 +152,7 @@ var ServerAdapter = (function () {
       (state.buffer === null).should.be.ok;
       (state.server === null).should.be.ok;
     }
-    _Server$Adapter.call(this);
+    _get(Object.getPrototypeOf(ServerAdapter.prototype), "constructor", this).call(this);
     _.bindAll(this);
     state.buffer = this._buffer = {};
     state.server = this;

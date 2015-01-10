@@ -1,10 +1,10 @@
-const through = require('through2');
-const Remutable = require('remutable');
+import through from 'through2';
+import Remutable from 'remutable';
 
-const Store = require('./Store');
-const Action = require('./Action');
-const Client = require('./Client.Event'); // we just need this reference for typechecks
-const Event = require('./Server.Event').Event; // jshint ignore:line
+import Store from './Store';
+import Action from './Action';
+import Client from './Client.Event'; // we just need this reference for typechecks
+import { Event } from './Server.Event';
 
 const ServerDuplex = through.ctor({ objectMode: true, allowHalfOpen: false},
   function receiveFromLink({ clientID, ev }, enc, done) {
@@ -36,7 +36,7 @@ class Server extends ServerDuplex {
     _.bindAll(this);
     this._stores = {};
     this._actions = {};
-    this._publish = adapter;
+    this._publish = adapter.publish;
     this.lifespan = new Promise((resolve) => this.release = resolve);
     if(adapter.onConnection && _.isFunction(adapter.onConnection)) {
       adapter.onConnection(this.accept, this.lifespan);
@@ -107,13 +107,6 @@ class Server extends ServerDuplex {
     return link;
   }
 
-  _send(ev) {
-    if(__DEV__) {
-      ev.should.be.an.instanceOf(Server.Event);
-    }
-    this.write(ev);
-  }
-
   _receive({ clientID, ev }) {
     if(__DEV__) {
       clientID.should.be.a.String;
@@ -131,11 +124,11 @@ class Server extends ServerDuplex {
       const consumer = engine.createConsumer()
       .onUpdate((consumer, patch) => {
         this._publish(path, consumer);
-        this._send(new Server.Event.Update({ path, patch }));
+        this.push(new Server.Event.Update({ path, patch }));
       })
-      .onDelete(() => this._send(new Server.Event.Delete({ path })));
+      .onDelete(() => this.push(new Server.Event.Delete({ path })));
       // immediatly publish the (empty) store
-      this._publish(path, consumer);
+      this._publish(path, engine.remutableConsumer);
       return this._stores[path] = { engine, consumer };
     })();
     const producer = engine.createProducer();
@@ -201,4 +194,4 @@ class Adapter {
 Server.Event = Event;
 Server.Adapter = Adapter;
 
-module.exports = Server;
+export default Server;

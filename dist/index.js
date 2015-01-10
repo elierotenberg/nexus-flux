@@ -1,5 +1,9 @@
 "use strict";
 
+var _interopRequire = function (obj) {
+  return obj && (obj["default"] || obj);
+};
+
 require("6to5/polyfill");
 var _ = require("lodash");
 var should = require("should");
@@ -10,11 +14,16 @@ var __BROWSER__ = typeof window === "object";
 var __NODE__ = !__BROWSER__;
 if (__DEV__) {
   Promise.longStackTraces();
+  Error.stackTraceLimit = Infinity;
 }
-var Client = require("./Client");
-var Server = require("./Server");
-var EventEmitter = require("./EventEmitter");
-var LocalAdapter = require("./LocalAdapter");
-var WebWorkerAdapter = require("./WebWorkerAdapter");
+var Client = _interopRequire(require("./Client"));
+
+var Server = _interopRequire(require("./Server"));
+
+var EventEmitter = _interopRequire(require("./EventEmitter"));
+
+var LocalAdapter = _interopRequire(require("./LocalAdapter"));
+
+var WebWorkerAdapter = _interopRequire(require("./WebWorkerAdapter"));
 
 module.exports = { Client: Client, Server: Server, EventEmitter: EventEmitter, LocalAdapter: LocalAdapter, WebWorkerAdapter: WebWorkerAdapter };

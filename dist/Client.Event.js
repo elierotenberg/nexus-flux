@@ -1,6 +1,31 @@
 "use strict";
 
+var _get = function get(object, property, receiver) {
+  var desc = Object.getOwnPropertyDescriptor(object, property);
+
+  if (desc === undefined) {
+    var parent = Object.getPrototypeOf(object);
+
+    if (parent === null) {
+      return undefined;
+    } else {
+      return get(parent, property, receiver);
+    }
+  } else if ("value" in desc && desc.writable) {
+    return desc.value;
+  } else {
+    var getter = desc.get;
+    if (getter === undefined) {
+      return undefined;
+    }
+    return getter.call(receiver);
+  }
+};
+
 var _inherits = function (child, parent) {
+  if (typeof parent !== "function" && parent !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof parent);
+  }
   child.prototype = Object.create(parent && parent.prototype, {
     constructor: {
       value: child,
@@ -22,6 +47,7 @@ var __BROWSER__ = typeof window === "object";
 var __NODE__ = !__BROWSER__;
 if (__DEV__) {
   Promise.longStackTraces();
+  Error.stackTraceLimit = Infinity;
 }
 var Event = function Event() {
   if (__DEV__) {
@@ -51,21 +77,21 @@ Event.prototype.toJSON = function () {
 };
 
 Event.fromJSON = function (json) {
-  var _ref = JSON.parse(json);
+  var _JSON$parse = JSON.parse(json);
 
-  var _t = _ref.t;
-  var j = _ref.j;
+  var _t = _JSON$parse.t;
+  var j = _JSON$parse.j;
   return Event._[_t].fromJS(j);
 };
 
 var Open = (function () {
   var _Event = Event;
-  var Open = function Open(_ref2) {
-    var clientID = _ref2.clientID;
+  var Open = function Open(_ref) {
+    var clientID = _ref.clientID;
     if (__DEV__) {
       clientID.should.be.a.String;
     }
-    _Event.call(this);
+    _get(Object.getPrototypeOf(Open.prototype), "constructor", this).call(this);
     Object.assign(this, { clientID: clientID });
   };
 
@@ -79,8 +105,8 @@ var Open = (function () {
     return "o";
   };
 
-  Open.fromJS = function (_ref3) {
-    var c = _ref3.c;
+  Open.fromJS = function (_ref2) {
+    var c = _ref2.c;
     return new Open(c);
   };
 
@@ -90,8 +116,8 @@ var Open = (function () {
 var Close = (function () {
   var _Event2 = Event;
   var Close = function Close() {
-    if (_Event2) {
-      _Event2.apply(this, arguments);
+    if (Object.getPrototypeOf(Close) !== null) {
+      Object.getPrototypeOf(Close).apply(this, arguments);
     }
   };
 
@@ -114,11 +140,12 @@ var Close = (function () {
 
 var Subscribe = (function () {
   var _Event3 = Event;
-  var Subscribe = function Subscribe(path) {
+  var Subscribe = function Subscribe(_ref3) {
+    var path = _ref3.path;
     if (__DEV__) {
       path.should.be.a.String;
     }
-    _Event3.call(this);
+    _get(Object.getPrototypeOf(Subscribe.prototype), "constructor", this).call(this);
     Object.assign(this, { path: path });
   };
 
@@ -140,42 +167,45 @@ var Subscribe = (function () {
   return Subscribe;
 })();
 
-var Unsbuscribe = (function () {
+var Unsubscribe = (function () {
   var _Event4 = Event;
-  var Unsbuscribe = function Unsbuscribe(path) {
+  var Unsubscribe = function Unsubscribe(_ref5) {
+    var path = _ref5.path;
     if (__DEV__) {
       path.should.be.a.String;
     }
-    _Event4.call(this);
+    _get(Object.getPrototypeOf(Unsubscribe.prototype), "constructor", this).call(this);
     Object.assign(this, { path: path });
   };
 
-  _inherits(Unsbuscribe, _Event4);
+  _inherits(Unsubscribe, _Event4);
 
-  Unsbuscribe.prototype._toJS = function () {
+  Unsubscribe.prototype._toJS = function () {
     return { p: this.patch };
   };
 
-  Unsbuscribe.t = function () {
+  Unsubscribe.t = function () {
     return "u";
   };
 
-  Unsbuscribe.fromJS = function (_ref5) {
-    var p = _ref5.p;
-    return new Unsbuscribe(p);
+  Unsubscribe.fromJS = function (_ref6) {
+    var p = _ref6.p;
+    return new Unsubscribe(p);
   };
 
-  return Unsbuscribe;
+  return Unsubscribe;
 })();
 
 var Dispatch = (function () {
   var _Event5 = Event;
-  var Dispatch = function Dispatch(path, params) {
+  var Dispatch = function Dispatch(_ref7) {
+    var path = _ref7.path;
+    var params = _ref7.params;
     if (__DEV__) {
       path.should.be.a.String;
       params.should.be.an.Object;
     }
-    _Event5.call(this);
+    _get(Object.getPrototypeOf(Dispatch.prototype), "constructor", this).call(this);
     Object.assign(this, { path: path, params: params });
   };
 
@@ -189,9 +219,9 @@ var Dispatch = (function () {
     return "d";
   };
 
-  Dispatch.fromJS = function (_ref6) {
-    var p = _ref6.p;
-    var a = _ref6.a;
+  Dispatch.fromJS = function (_ref8) {
+    var p = _ref8.p;
+    var a = _ref8.a;
     return new Dispatch(p, a);
   };
 
@@ -202,7 +232,7 @@ Event._ = {};
 Event.Open = Event._[Open.t()] = Open;
 Event.Close = Event._[Close.t()] = Close;
 Event.Subscribe = Event._[Subscribe.t()] = Subscribe;
-Event.Unsbuscribe = Event._[Unsbuscribe.t()] = Unsbuscribe;
+Event.Unsubscribe = Event._[Unsubscribe.t()] = Unsubscribe;
 Event.Dispatch = Event._[Dispatch.t()] = Dispatch;
 
 module.exports = { Event: Event };

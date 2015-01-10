@@ -1,7 +1,7 @@
-const Client = require('./Client');
-const Server = require('./Server');
-const EventEmitter = require('./EventEmitter');
-const LocalAdapter = require('./LocalAdapter');
-const WebWorkerAdapter = require('./WebWorkerAdapter');
+import Client from './Client';
+import Server from './Server';
+import EventEmitter from './EventEmitter';
+import LocalAdapter from './LocalAdapter';
+import WebWorkerAdapter from './WebWorkerAdapter';
 
-module.exports = { Client, Server, EventEmitter, LocalAdapter, WebWorkerAdapter };
+export default { Client, Server, EventEmitter, LocalAdapter, WebWorkerAdapter };

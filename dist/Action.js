@@ -1,6 +1,31 @@
 "use strict";
 
+var _get = function get(object, property, receiver) {
+  var desc = Object.getOwnPropertyDescriptor(object, property);
+
+  if (desc === undefined) {
+    var parent = Object.getPrototypeOf(object);
+
+    if (parent === null) {
+      return undefined;
+    } else {
+      return get(parent, property, receiver);
+    }
+  } else if ("value" in desc && desc.writable) {
+    return desc.value;
+  } else {
+    var getter = desc.get;
+    if (getter === undefined) {
+      return undefined;
+    }
+    return getter.call(receiver);
+  }
+};
+
 var _inherits = function (child, parent) {
+  if (typeof parent !== "function" && parent !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof parent);
+  }
   child.prototype = Object.create(parent && parent.prototype, {
     constructor: {
       value: child,
@@ -10,6 +35,10 @@ var _inherits = function (child, parent) {
     }
   });
   if (parent) child.__proto__ = parent;
+};
+
+var _interopRequire = function (obj) {
+  return obj && (obj["default"] || obj);
 };
 
 require("6to5/polyfill");
@@ -22,9 +51,11 @@ var __BROWSER__ = typeof window === "object";
 var __NODE__ = !__BROWSER__;
 if (__DEV__) {
   Promise.longStackTraces();
+  Error.stackTraceLimit = Infinity;
 }
-var asap = require("asap");
-var EventEmitter = require("./EventEmitter");
+var asap = _interopRequire(require("asap"));
+
+var EventEmitter = _interopRequire(require("./EventEmitter"));
 
 var EVENTS = { DISPATCH: "d" };
 
@@ -34,12 +65,12 @@ var Producer = function Producer(emit, lifespan) {
     emit.should.be.a.Function;
     lifespan.should.have.property("then").which.is.a.Function;
   }
-  _.bindAll(this);
   Object.assign(this, {
     emit: emit,
     lifespan: Promise.any([lifespan, new Promise(function (resolve) {
       return _this.release = resolve;
     })]) });
+  _.bindAll(this);
 };
 
 Producer.prototype.dispatch = function (params) {
@@ -56,12 +87,12 @@ var Consumer = function Consumer(addListener, lifespan) {
     addListener.should.be.a.Function;
     lifespan.should.have.property("then").which.is.a.Function;
   }
-  _.bindAll(this);
   Object.assign(this, {
     addListener: addListener,
     lifespan: Promise.any([lifespan, new Promise(function (resolve) {
       return _this2.release = resolve;
     })]) });
+  _.bindAll(this);
 
   if (__DEV__) {
     this._onDispatchHandlers = 0;
@@ -91,6 +122,7 @@ var Engine = (function () {
   var _EventEmitter = EventEmitter;
   var Engine = function Engine() {
     var _this3 = this;
+    _get(Object.getPrototypeOf(Engine.prototype), "constructor", this).call(this);
     this.lifespan = new Promise(function (resolve) {
       return _this3.release = resolve;
     });

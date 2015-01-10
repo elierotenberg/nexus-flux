@@ -25,7 +25,32 @@ var _defineProperty = function (obj, key, value) {
   });
 };
 
+var _get = function get(object, property, receiver) {
+  var desc = Object.getOwnPropertyDescriptor(object, property);
+
+  if (desc === undefined) {
+    var parent = Object.getPrototypeOf(object);
+
+    if (parent === null) {
+      return undefined;
+    } else {
+      return get(parent, property, receiver);
+    }
+  } else if ("value" in desc && desc.writable) {
+    return desc.value;
+  } else {
+    var getter = desc.get;
+    if (getter === undefined) {
+      return undefined;
+    }
+    return getter.call(receiver);
+  }
+};
+
 var _inherits = function (child, parent) {
+  if (typeof parent !== "function" && parent !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof parent);
+  }
   child.prototype = Object.create(parent && parent.prototype, {
     constructor: {
       value: child,
@@ -35,6 +60,10 @@ var _inherits = function (child, parent) {
     }
   });
   if (parent) child.__proto__ = parent;
+};
+
+var _interopRequire = function (obj) {
+  return obj && (obj["default"] || obj);
 };
 
 require("6to5/polyfill");
@@ -47,11 +76,15 @@ var __BROWSER__ = typeof window === "object";
 var __NODE__ = !__BROWSER__;
 if (__DEV__) {
   Promise.longStackTraces();
+  Error.stackTraceLimit = Infinity;
 }
-var Client = require("./Client");
-var Server = require("./Server");
-var Remutable = require("remutable");
-var through = require("through2");
+var Client = _interopRequire(require("./Client"));
+
+var Server = _interopRequire(require("./Server"));
+
+var Remutable = _interopRequire(require("remutable"));
+
+var through = _interopRequire(require("through2"));
 
 // Client.Events:
 // Client -> Adapter -> (worker.postMessage -> worker.onmessage) -> Server.Link -> Server
@@ -88,7 +121,7 @@ var ClientAdapter = (function () {
       window.should.have.property("Worker").which.is.a.Function;
       worker.should.be.an.instanceOf(window.Worker);
     }
-    _ClientAdapterDuplex.call(this);
+    _get(Object.getPrototypeOf(ClientAdapter.prototype), "constructor", this).call(this);
     _.bindAll(this);
     this._worker = worker;
     this._worker.onmessage = this._receiveFromWorker; // Server.Link (them) -> Client.Adapter (us)
@@ -103,7 +136,7 @@ var ClientAdapter = (function () {
     return Promise["try"](function () {
       if (__DEV__) {
         path.should.be.a.String;
-        (_.isNull(hash) || _.isString(hash)).should.be.true;
+        (_.isNull(hash) || _.isString(hash)).should.be["true"];
       }
 
       if (_this._fetching[path] === void 0) {
@@ -120,8 +153,8 @@ var ClientAdapter = (function () {
     });
   };
 
-  ClientAdapter.prototype._receiveFromWorker = function (_ref5) {
-    var data = _ref5.data;
+  ClientAdapter.prototype._receiveFromWorker = function (_ref) {
+    var data = _ref.data;
     // Server.Link (them) -> Client.Adapter (us)
     if (_.isObject(data) && data[salt] !== void 0) {
       // don't catch messages from other stuff by mistake
@@ -172,21 +205,20 @@ var LinkDuplex = through.ctor({ objectMode: true, allowHalfOpen: true }, functio
 
 var Link = (function () {
   var _LinkDuplex = LinkDuplex;
-  var Link = ( // represents a client connection from the servers' point of view
-    function Link(buffer) {
-      if (__DEV__) {
-        buffer.should.be.an.Object;
-      }
-      _LinkDuplex.call(this);
-      this._buffer = buffer;
-      self.onmessage = this._receiveFromClient; // Client.Adapter (them) -> Server.Link (us)
+  var Link = // represents a client connection from the servers' point of view
+  function Link(buffer) {
+    if (__DEV__) {
+      buffer.should.be.an.Object;
     }
-  );
+    _get(Object.getPrototypeOf(Link.prototype), "constructor", this).call(this);
+    this._buffer = buffer;
+    self.onmessage = this._receiveFromClient; // Client.Adapter (them) -> Server.Link (us)
+  };
 
   _inherits(Link, _LinkDuplex);
 
-  Link.prototype._receiveFromClient = function (_ref6) {
-    var data = _ref6.data;
+  Link.prototype._receiveFromClient = function (_ref2) {
+    var data = _ref2.data;
     // Client.Adapter (them) -> Server.Link (us)
     if (_.isObject(data) && data[salt] !== void 0) {
       var _data$salt2 = _slicedToArray(data[salt], 2);
@@ -224,12 +256,12 @@ var Link = (function () {
 
 /* jshint worker:true */
 var ServerAdapter = (function () {
-  /* jshint worker:false */ /* jshint worker:true */var _Server$Adapter = Server.Adapter;
+  var _Server$Adapter = Server.Adapter;
   var ServerAdapter = function ServerAdapter() {
     if (__DEV__) {
       self.should.have.property("onmessage").which.is.a.Function;
     }
-    _Server$Adapter.call(this);
+    _get(Object.getPrototypeOf(ServerAdapter.prototype), "constructor", this).call(this);
     _.bindAll(this);
     this._data = {};
   };

@@ -1,5 +1,5 @@
-const asap = require('asap');
-const EventEmitter = require('./EventEmitter');
+import asap from 'asap';
+import EventEmitter from './EventEmitter';
 
 const EVENTS = { DISPATCH: 'd' };
 
@@ -9,11 +9,11 @@ class Producer {
       emit.should.be.a.Function;
       lifespan.should.have.property('then').which.is.a.Function;
     }
-    _.bindAll(this);
     Object.assign(this, {
       emit,
       lifespan: Promise.any([lifespan, new Promise((resolve) => this.release = resolve)]),
     });
+    _.bindAll(this);
   }
 
   dispatch(params) {
@@ -31,11 +31,11 @@ class Consumer {
       addListener.should.be.a.Function;
       lifespan.should.have.property('then').which.is.a.Function;
     }
-    _.bindAll(this);
     Object.assign(this, {
       addListener,
       lifespan: Promise.any([lifespan, new Promise((resolve) => this.release = resolve)]),
     });
+    _.bindAll(this);
 
     if(__DEV__) {
       this._onDispatchHandlers = 0;
@@ -64,6 +64,7 @@ class Consumer {
 
 class Engine extends EventEmitter {
   constructor() {
+    super();
     this.lifespan = new Promise((resolve) => this.release = resolve);
     _.bindAll(this);
     this.consumers = 0;
@@ -101,4 +102,4 @@ class Engine extends EventEmitter {
   }
 }
 
-module.exports = { Consumer, Producer, Engine };
+export default { Consumer, Producer, Engine };

@@ -1,11 +1,11 @@
-const Remutable = require('remutable');
+import Remutable from 'remutable';
 const { Patch } = Remutable;
-const through = require('through2');
+import through from 'through2';
 
-const Store = require('./Store');
-const Action = require('./Action');
-const Server = require('./Server.Event'); // we just need this reference for typechecks
-const Event = require('./Client.Event').Event; // jshint ignore:line
+import Store from './Store';
+import Action from './Action';
+import Server from './Server.Event'; // we just need this reference for typechecks
+import { Event } from './Client.Event';
 
 const INT_MAX = 9007199254740992;
 
@@ -54,6 +54,7 @@ class Client extends ClientDuplex {
       _refetching: {},
       _actions: {},
       _fetch: adapter.fetch,
+      _prefetched: null,
     });
 
     adapter.pipe(this); // adapter sends us server events
@@ -62,31 +63,60 @@ class Client extends ClientDuplex {
     this.push(new Client.Event.Open({ clientID }));
   }
 
-  Store(path, lifespan, autofetch = true) { // returns a Store consumer
+  import(prefetched) {
+    if(__DEV__) {
+      prefetched.should.be.an.Object;
+      (this._prefetched === null).should.be.true;
+    }
+    this._prefetched = _.mapValues(prefetched, (js) => Remutable.fromJS(js));
+    return this;
+  }
+
+  export() {
+    if(__DEV__) {
+      (this._prefetched !== null).should.be.true;
+    }
+    return _.mapValues(this._stores, (val) => val.remutable.toJS());
+  }
+
+  // example usage: client.settle('/todoList', '/userList'), client.settle(paths), client.settle().
+  settle(...stores) { // wait for all the initialization Promise to be either fullfilled or rejected; paths can be either null/void 0 (all stores), a single string (1 store), or an array of stores
+    if(stores === void 0) {
+      stores = Object.keys(this._stores);
+    }
+    if(__DEV__) {
+      stores.should.be.an.Array;
+    }
+    if(_.isArray(stores[0])) {
+      stores = stores[0];
+    }
+    return Promise.settle(_.map(stores, (path) => this._stores[path].initialized));
+  }
+
+  Store(path, lifespan) { // returns a Store consumer
     if(__DEV__) {
       path.should.be.a.String;
       lifespan.should.have.property('then').which.is.a.Function;
     }
     const { engine } = this._stores[path] || (() => { // if we don't know this store yet, then subscribe
       this.push(new Client.Event.Subscribe({ path }));
-      const engine = new Store.Engine();
-      this._stores[path] = {
+      const prefetched = this._prefetched !== null && this._prefetched[path] !== void 0 ? this._prefetched[path] : null;
+      const engine = new Store.Engine(prefetched);
+      const store = this._stores[path] = {
         engine,
         producer: engine.createProducer(),
         patches: {},         // initially we have no pending patches and we are not refetching
         refetching: false,
+        initialized: null,
       };
-      // refetch immediatly unless we are explicitly told not to
-      if(autofetch) {
-        this._refetch(path, null);
-      }
+      store.initialized = this._refetch(path, prefetched ? prefetched.hash : null);
       return this._stores[path];
     })();
     const consumer = engine.createConsumer();
     consumer.lifespan.then(() => { // Stores without consumers are removed
       if(engine.consumers === 0) { // if we don't have anymore consumers, then unsubscribe
         engine.release();
-        this.push(new Client.Event.Unsbuscribe({ path }));
+        this.push(new Client.Event.Unsubscribe({ path }));
         delete this._stores[path];
       }
     });
@@ -127,10 +157,10 @@ class Client extends ClientDuplex {
       return;
     }
     const { producer, patches, refetching } = this._stores[path];
-    const { hash } = producer.remutableConsumer;
+    const { hash } = producer;
     const { source, target } = patch;
     if(hash === source) { // if the patch applies to our current version, apply it now
-      return producer.update(patch);
+      return producer.apply(patch);
     } // we don't have a recent enough version, we need to refetch
     if(!refetching) { // if we arent already refetching, request a newer version (atleast >= target)
       return this._refetch(path, target);
@@ -152,12 +182,12 @@ class Client extends ClientDuplex {
   _refetch(path, target) {
     if(__DEV__) {
       path.should.be.a.String;
-      target.should.be.a.String;
+      (target === null || _.isString(target)).should.be.true;
       this._stores.should.have.property(path);
     }
     this._stores[path].refetching = true;
     // we use the fetch method from the adapter
-    this._fetch(path, target).then((remutable) => this._upgrade(path, remutable));
+    return this._fetch(path, target).then((remutable) => this._upgrade(path, remutable));
   }
 
   _upgrade(path, next) {
@@ -168,9 +198,9 @@ class Client extends ClientDuplex {
     if(this._stores[path] === void 0) { // not interested anymore
       return;
     }
-    const { producer, patches } = this._stores[path];
-    const prev = producer.remutableConsumer;
-    if(prev.version > next.version) { // we already have a more recent version
+    const { engine, producer, patches } = this._stores[path];
+    const prev = engine.remutable;
+    if(prev.version >= next.version) { // we already have a more recent version
       return;
     }
     // squash patches to create a single patch
@@ -178,14 +208,14 @@ class Client extends ClientDuplex {
     while(patches[squash.target] !== void 0) {
       squash = Patch.combine(squash, patches[squash.target]);
     }
-    const version = squash.t.v;
+    const version = squash.to.v;
     // clean old patches
-    _.each((patches), ({ t }, source) => {
-      if(t.v <= version) {
+    _.each((patches), ({ to }, source) => {
+      if(to.v <= version) {
         delete patches[source];
       }
     });
-    producer.update(squash);
+    producer.apply(squash);
   }
 }
 
@@ -193,4 +223,4 @@ _Client = Client;
 
 Object.assign(Client, { Event, isAdapter });
 
-module.exports = Client;
+export default Client;

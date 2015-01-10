@@ -68,7 +68,7 @@ Nexus Flux is built with React, Nexus Uplink and React Nexus in mind, but it is 
 
   componentWillMount() {
     this.props.flux.Store('/todo-list', this.lifespan)
-    .onChange((todoList) => this.setState({ todoList }))
+    .onUpdate((todoList) => this.setState({ todoList }))
     .onDelete(() => this.setState({ todoList: undefined }));
     this.removeItem = this.props.flux.Action('/remove-item', this.lifespan).dispatch;
   }

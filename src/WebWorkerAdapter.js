@@ -1,7 +1,7 @@
-const Client = require('./Client');
-const Server = require('./Server');
-const Remutable = require('remutable');
-const through = require('through2');
+import Client from './Client';
+import Server from './Server';
+import Remutable from 'remutable';
+import through from 'through2';
 
 // Client.Events:
 // Client -> Adapter -> (worker.postMessage -> worker.onmessage) -> Server.Link -> Server

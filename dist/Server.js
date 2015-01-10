@@ -1,6 +1,31 @@
 "use strict";
 
+var _get = function get(object, property, receiver) {
+  var desc = Object.getOwnPropertyDescriptor(object, property);
+
+  if (desc === undefined) {
+    var parent = Object.getPrototypeOf(object);
+
+    if (parent === null) {
+      return undefined;
+    } else {
+      return get(parent, property, receiver);
+    }
+  } else if ("value" in desc && desc.writable) {
+    return desc.value;
+  } else {
+    var getter = desc.get;
+    if (getter === undefined) {
+      return undefined;
+    }
+    return getter.call(receiver);
+  }
+};
+
 var _inherits = function (child, parent) {
+  if (typeof parent !== "function" && parent !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof parent);
+  }
   child.prototype = Object.create(parent && parent.prototype, {
     constructor: {
       value: child,
@@ -10,6 +35,10 @@ var _inherits = function (child, parent) {
     }
   });
   if (parent) child.__proto__ = parent;
+};
+
+var _interopRequire = function (obj) {
+  return obj && (obj["default"] || obj);
 };
 
 require("6to5/polyfill");
@@ -22,14 +51,21 @@ var __BROWSER__ = typeof window === "object";
 var __NODE__ = !__BROWSER__;
 if (__DEV__) {
   Promise.longStackTraces();
+  Error.stackTraceLimit = Infinity;
 }
-var through = require("through2");
-var Remutable = require("remutable");
+var through = _interopRequire(require("through2"));
 
-var Store = require("./Store");
-var Action = require("./Action");
-var Client = require("./Client.Event"); // we just need this reference for typechecks
-var Event = require("./Server.Event").Event; // jshint ignore:line
+var Remutable = _interopRequire(require("remutable"));
+
+var Store = _interopRequire(require("./Store"));
+
+var Action = _interopRequire(require("./Action"));
+
+var Client = _interopRequire(require("./Client.Event"));
+
+// we just need this reference for typechecks
+var Event = require("./Server.Event").Event;
+
 
 var ServerDuplex = through.ctor({ objectMode: true, allowHalfOpen: false }, function receiveFromLink(_ref, enc, done) {
   var clientID = _ref.clientID;
@@ -57,11 +93,11 @@ var Server = (function () {
       adapter.should.be.an.instanceOf(Server.Adapter);
       this.should.have.property("pipe").which.is.a.Function;
     }
-    _ServerDuplex.call(this);
+    _get(Object.getPrototypeOf(Server.prototype), "constructor", this).call(this);
     _.bindAll(this);
     this._stores = {};
     this._actions = {};
-    this._publish = adapter;
+    this._publish = adapter.publish;
     this.lifespan = new Promise(function (resolve) {
       return _this.release = resolve;
     });
@@ -136,13 +172,6 @@ var Server = (function () {
     return link;
   };
 
-  Server.prototype._send = function (ev) {
-    if (__DEV__) {
-      ev.should.be.an.instanceOf(Server.Event);
-    }
-    this.write(ev);
-  };
-
   Server.prototype._receive = function (_ref2) {
     var clientID = _ref2.clientID;
     var ev = _ref2.ev;
@@ -162,12 +191,12 @@ var Server = (function () {
       var _engine = new Store.Engine();
       var consumer = _engine.createConsumer().onUpdate(function (consumer, patch) {
         _this2._publish(path, consumer);
-        _this2._send(new Server.Event.Update({ path: path, patch: patch }));
+        _this2.push(new Server.Event.Update({ path: path, patch: patch }));
       }).onDelete(function () {
-        return _this2._send(new Server.Event.Delete({ path: path }));
+        return _this2.push(new Server.Event.Delete({ path: path }));
       });
       // immediatly publish the (empty) store
-      _this2._publish(path, consumer);
+      _this2._publish(path, _engine.remutableConsumer);
       return _this2._stores[path] = { engine: _engine, consumer: consumer };
     })();
     var engine = _ref3.engine;

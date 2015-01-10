@@ -1,4 +1,4 @@
-const { Patch } = require('remutable');
+import { Patch } from 'remutable';
 
 class Event {
   constructor() {
@@ -37,7 +37,7 @@ class Event {
 }
 
 class Update extends Event {
-  constructor(path, patch) {
+  constructor({ path, patch }) {
     if(__DEV__) {
       path.should.be.a.String;
       patch.should.be.an.instanceOf(Patch);
@@ -67,7 +67,7 @@ class Update extends Event {
 }
 
 class Delete extends Event {
-  constructor(path) {
+  constructor({ path }) {
     if(__DEV__) {
       path.should.be.a.String;
     }
@@ -95,4 +95,4 @@ Event._ = {};
 Event.Update = Event._[Update.t()] = Update;
 Event.Delete = Event._[Delete.t()] = Delete;
 
-module.exports = { Event };
+export default { Event };
