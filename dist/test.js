@@ -45,6 +45,10 @@ _.defer(function () {
     return clearInterval(i);
   });
 
+  server.Action("/ping", lifespan).onDispatch(function (payload) {
+    console.warn("pong", payload);
+  });
+
   setTimeout(release, 11000); // at some point in the future, shutdown the server
 });
 
@@ -57,6 +61,7 @@ _.defer(function () {
   });
   // instanciate the client, make it fetch from the shared state
   var client = new Client(new LocalAdapter.Client(state));
+  var ping = client.Action("/ping", lifespan);
   // subscribe to the store at the '/clock' path
   client.Store("/clock", lifespan).onUpdate(function (_ref) {
     var head = _ref.head;
@@ -75,6 +80,14 @@ _.defer(function () {
   }).onDelete(function () {
     // whenever its deleted, print it
     console.warn("deleted list");
+  });
+
+  var i = setInterval(function () {
+    ping.dispatch({ timestamp: Date.now() });
+  }, 1200);
+
+  lifespan.then(function () {
+    return clearInterval(i);
   });
 
   setTimeout(release, 10000); // at some point in the future, shutdown the client

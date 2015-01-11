@@ -58,16 +58,16 @@ var asap = _interopRequire(require("asap"));
 var EventEmitter = _interopRequire(require("./EventEmitter"));
 
 var EVENTS = { DISPATCH: "d" };
+var _Engine = undefined;
 
-var Producer = function Producer(emit, lifespan) {
+var Producer = function Producer(engine) {
   var _this = this;
   if (__DEV__) {
-    emit.should.be.a.Function;
-    lifespan.should.have.property("then").which.is.a.Function;
+    engine.should.be.an.instanceOf(_Engine);
   }
   Object.assign(this, {
-    emit: emit,
-    lifespan: Promise.any([lifespan, new Promise(function (resolve) {
+    _engine: engine,
+    lifespan: Promise.any([engine.lifespan, new Promise(function (resolve) {
       return _this.release = resolve;
     })]) });
   _.bindAll(this);
@@ -77,19 +77,18 @@ Producer.prototype.dispatch = function (params) {
   if (__DEV__) {
     params.should.be.an.Object;
   }
-  this.emit(EVENTS.DISPATCH, params);
+  this._engine.dispatch(params);
   return this;
 };
 
-var Consumer = function Consumer(addListener, lifespan) {
+var Consumer = function Consumer(engine) {
   var _this2 = this;
   if (__DEV__) {
-    addListener.should.be.a.Function;
-    lifespan.should.have.property("then").which.is.a.Function;
+    engine.should.be.an.instanceOf(_Engine);
   }
   Object.assign(this, {
-    addListener: addListener,
-    lifespan: Promise.any([lifespan, new Promise(function (resolve) {
+    _engine: engine,
+    lifespan: Promise.any([engine.lifespan, new Promise(function (resolve) {
       return _this2.release = resolve;
     })]) });
   _.bindAll(this);
@@ -111,7 +110,7 @@ Consumer.prototype.onDispatch = function (fn) {
   if (__DEV__) {
     fn.should.be.a.Function;
   }
-  this.addListener(EVENTS.DISPATCH, fn, this.lifespan);
+  this._engine.addListener(EVENTS.DISPATCH, fn, this.lifespan);
   if (__DEV__) {
     this._onDispatchHandlers = this._onDispatchHandlers + 1;
   }
@@ -129,15 +128,13 @@ var Engine = (function () {
     _.bindAll(this);
     this.consumers = 0;
     this.producers = 0;
-    this.addListener(EVENTS.UPDATE, this.update, this.lifespan);
-    this.addListener(EVENTS.DELETE, this["delete"], this.lifespan);
   };
 
   _inherits(Engine, _EventEmitter);
 
   Engine.prototype.createProducer = function () {
     var _this4 = this;
-    var producer = new Producer(this.emit, this.lifespan);
+    var producer = new Producer(this);
     this.producers = this.producers + 1;
     producer.lifespan.then(function () {
       _this4.producers = _this4.producers - 1;
@@ -150,7 +147,7 @@ var Engine = (function () {
 
   Engine.prototype.createConsumer = function () {
     var _this5 = this;
-    var consumer = new Consumer(this.addListener, this.lifespan);
+    var consumer = new Consumer(this);
     this.consumers = this.consumers + 1;
     consumer.lifespan.then(function () {
       _this5.consumers = _this5.consumers - 1;
@@ -171,5 +168,7 @@ var Engine = (function () {
 
   return Engine;
 })();
+
+_Engine = Engine;
 
 module.exports = { Consumer: Consumer, Producer: Producer, Engine: Engine };

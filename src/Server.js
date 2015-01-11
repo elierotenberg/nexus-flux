@@ -112,6 +112,16 @@ class Server extends ServerDuplex {
       clientID.should.be.a.String;
       ev.should.be.an.instanceOf(Client.Event);
     }
+    if(ev instanceof Client.Event.Dispatch) {
+      const { path, params } = ev;
+      if(__DEV__) {
+        path.should.be.a.String;
+        (params === null || _.isObject(params)).should.be.true;
+      }
+      if(this._actions[path] !== void 0) {
+        return this._actions[path].producer.dispatch({ clientID, params });
+      }
+    }
   }
 
   Store(path, lifespan) {
@@ -149,11 +159,12 @@ class Server extends ServerDuplex {
 
     const { engine } = this._actions[path] || (() => {
       const engine = new Action.Engine();
+      const producer = engine.createProducer();
       return this._actions[path] = {
         engine,
-        producer: engine.createProducer(),
+        producer,
       };
-    });
+    })();
     const consumer = engine.createConsumer();
     consumer.lifespan.then(() => {
       if(engine.consumers === 0) {

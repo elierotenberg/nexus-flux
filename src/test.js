@@ -24,6 +24,11 @@ _.defer(function() { // server main
   // whenever the server dies, clear this loop
   lifespan.then(() => clearInterval(i));
 
+  server.Action('/ping', lifespan)
+  .onDispatch((payload) => {
+    console.warn('pong', payload);
+  });
+
   setTimeout(release, 11000); // at some point in the future, shutdown the server
 });
 
@@ -33,6 +38,7 @@ _.defer(function() { // client main
   const lifespan = new Promise((resolve) => release = resolve);
   // instanciate the client, make it fetch from the shared state
   const client = new Client(new LocalAdapter.Client(state));
+  const ping = client.Action('/ping', lifespan);
   // subscribe to the store at the '/clock' path
   client.Store('/clock', lifespan)
   .onUpdate(({ head }) => { // whenever it updates, print the new value
@@ -50,6 +56,12 @@ _.defer(function() { // client main
   .onDelete(() => { // whenever its deleted, print it
     console.warn('deleted list');
   });
+
+  const i = setInterval(() => {
+    ping.dispatch({ timestamp: Date.now() });
+  }, 1200);
+
+  lifespan.then(() => clearInterval(i));
 
   setTimeout(release, 10000); // at some point in the future, shutdown the client
 });

@@ -179,6 +179,17 @@ var Server = (function () {
       clientID.should.be.a.String;
       ev.should.be.an.instanceOf(Client.Event);
     }
+    if (ev instanceof Client.Event.Dispatch) {
+      var path = ev.path;
+      var params = ev.params;
+      if (__DEV__) {
+        path.should.be.a.String;
+        (params === null || _.isObject(params)).should.be["true"];
+      }
+      if (this._actions[path] !== void 0) {
+        return this._actions[path].producer.dispatch({ clientID: clientID, params: params });
+      }
+    }
   };
 
   Server.prototype.Store = function (path, lifespan) {
@@ -217,12 +228,13 @@ var Server = (function () {
       path.should.be.a.String;
     }
 
-    var _ref4 = this._actions[path] || function () {
+    var _ref4 = this._actions[path] || (function () {
       var _engine2 = new Action.Engine();
+      var producer = _engine2.createProducer();
       return _this3._actions[path] = {
         engine: _engine2,
-        producer: _engine2.createProducer() };
-    };
+        producer: producer };
+    })();
     var engine = _ref4.engine;
     var consumer = engine.createConsumer();
     consumer.lifespan.then(function () {

@@ -15,25 +15,38 @@ Local Nexus Flux Diagram
 ```
 Component #1 <---+
                  |
-Component #2 <---+-- Stream.Duplex Adapter -> Global logic
+Component #2 <---+-- LocalAdapter -> Global logic
                  |
 Component #3 <---+
 
 ```
 
-Over the wire Nexus Flux Diagram using Websockets
+Over the wire Nexus Flux Diagram using Websockets (with socket.io fallback)
 ```
+in the browser        socket.io frames     in the server
+
 Component #A1 <---+
                   |
-Component #A2 <---+-- Websocket Adapter -+
-                  |       Client A       |
-Component #A3 <---+                      |
-                                         +-> Global logic
-Component #B1 <---+                      |
-                  |                      |
-Component #B2 <---+-- Websocket Adapter -+
-                  |       Client B
+Component #A2 <---+-- SocketIOAdapter -+
+                  |      Client A      |
+Component #A3 <---+                    |
+                                       +-> Global logic
+Component #B1 <---+                    |
+                  |                    |
+Component #B2 <---+-- SocketIOAdapter -+
+                  |      Client B
 Component #B3 <---+
+```
+
+Off-thread Flux using WebWorkers
+```
+in the main thread   postMessage frames  in the webworker
+
+Component #1 <---+
+                 |
+Component #2 <---+-- WebWorkerAdapter -> Global logic
+                 |
+Component #3 <---+
 ```
 
 #### Principles
@@ -60,7 +73,7 @@ Nexus Flux is built with React, Nexus Uplink and React Nexus in mind, but it is 
 ```js
 {
   getInitialState() {
-    this.lifespan = new Promise((resolve) => this._lifespan = resolve);
+    this.lifespan = new Promise((resolve) => this.unmount = resolve);
     return {
       todoList: this.props.flux.Store('/todo-list', this.lifespan).value,
     };
@@ -69,12 +82,12 @@ Nexus Flux is built with React, Nexus Uplink and React Nexus in mind, but it is 
   componentWillMount() {
     this.props.flux.Store('/todo-list', this.lifespan)
     .onUpdate((todoList) => this.setState({ todoList }))
-    .onDelete(() => this.setState({ todoList: undefined }));
+    .onDelete(() => this.setState({ todoList: void 0 }));
     this.removeItem = this.props.flux.Action('/remove-item', this.lifespan).dispatch;
   }
 
   componentWillUnmount() {
-    this._lifespan();
+    this.unmount();
   }
 
   render() {
@@ -104,7 +117,7 @@ removeItem.onDispatch((clientID, { name }) => {
 });
 ```
 
-#### Implementation example: local flux using LocalAdapter
+#### Implementation example: local flux using LocalAdapter (included in this package)
 
 This implements the orthodox Flux for in-app data propagation.
 
@@ -118,7 +131,7 @@ const client = new Client(new LocalAdapter.Client(state));
 // use the server and client instance like above.
 ```
 
-#### Implementation example: flux over the wire using nexus-flux-socket.io
+#### Implementation example: flux over the wire using nexus-flux-socket.io (WIP)
 
 Share global server-side app state across all connected clients.
 
@@ -132,7 +145,7 @@ const client = new Client(new SocketIOAdapter.Client('http://localhost:8080'));
 const server = new Server(new SocketIOAdapter.Server({ port: 8080, maxClients: 50000 });
 ```
 
-#### Implementation example: off-thread local flux using WebWorkerAdapter
+#### Implementation example: off-thread local flux using WebWorkerAdapter (included in this package) (WIP)
 
 Defer expensive app-state data calculations off the main thread to avoid blocking UI.
 
@@ -140,7 +153,8 @@ You can check the adapter from [its source](https://github.com/elierotenberg/nex
 
 ```js
 // Client side: runs in the main thread
-const client = new Client(new WebworkerAdapter.Client(new Worker('my-web-worker.js')));
+const worker = new Worker('my-web-worker.js');
+const client = new Client(new WebworkerAdapter.Client(worker));
 ```
 
 ```js
@@ -148,7 +162,7 @@ const client = new Client(new WebworkerAdapter.Client(new Worker('my-web-worker.
 const server = new Server(new WebWorkerAdapter.Server());
 ```
 
-#### Implementation example: cross-window flux using nexus-flux-xwindow
+#### Implementation example: cross-window flux using nexus-flux-xwindow (WIP)
 
 Communicate between windows from the same origin using the flux architecture.
 
@@ -164,7 +178,7 @@ const w = window.open(...);
 const server = new Server(new XWindowAdapter.Server({ accept: [w] }));
 ```
 
-#### Implementation example: node-to-node TCP flux using nexus-flux-node
+#### Implementation example: node-to-node TCP flux using nexus-flux-node (WIP)
 
 Communicate between node servers using the flux architecture.
 

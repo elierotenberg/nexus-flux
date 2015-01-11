@@ -2,16 +2,16 @@ import asap from 'asap';
 import EventEmitter from './EventEmitter';
 
 const EVENTS = { DISPATCH: 'd' };
+let _Engine;
 
 class Producer {
-  constructor(emit, lifespan) {
+  constructor(engine) {
     if(__DEV__) {
-      emit.should.be.a.Function;
-      lifespan.should.have.property('then').which.is.a.Function;
+      engine.should.be.an.instanceOf(_Engine);
     }
     Object.assign(this, {
-      emit,
-      lifespan: Promise.any([lifespan, new Promise((resolve) => this.release = resolve)]),
+      _engine: engine,
+      lifespan: Promise.any([engine.lifespan, new Promise((resolve) => this.release = resolve)]),
     });
     _.bindAll(this);
   }
@@ -20,20 +20,19 @@ class Producer {
     if(__DEV__) {
       params.should.be.an.Object;
     }
-    this.emit(EVENTS.DISPATCH, params);
+    this._engine.dispatch(params);
     return this;
   }
 }
 
 class Consumer {
-  constructor(addListener, lifespan) {
+  constructor(engine) {
     if(__DEV__) {
-      addListener.should.be.a.Function;
-      lifespan.should.have.property('then').which.is.a.Function;
+      engine.should.be.an.instanceOf(_Engine);
     }
     Object.assign(this, {
-      addListener,
-      lifespan: Promise.any([lifespan, new Promise((resolve) => this.release = resolve)]),
+      _engine: engine,
+      lifespan: Promise.any([engine.lifespan, new Promise((resolve) => this.release = resolve)]),
     });
     _.bindAll(this);
 
@@ -54,7 +53,7 @@ class Consumer {
     if(__DEV__) {
       fn.should.be.a.Function;
     }
-    this.addListener(EVENTS.DISPATCH, fn, this.lifespan);
+    this._engine.addListener(EVENTS.DISPATCH, fn, this.lifespan);
     if(__DEV__) {
       this._onDispatchHandlers = this._onDispatchHandlers + 1;
     }
@@ -69,12 +68,10 @@ class Engine extends EventEmitter {
     _.bindAll(this);
     this.consumers = 0;
     this.producers = 0;
-    this.addListener(EVENTS.UPDATE, this.update, this.lifespan);
-    this.addListener(EVENTS.DELETE, this.delete, this.lifespan);
   }
 
   createProducer() {
-    const producer = new Producer(this.emit, this.lifespan);
+    const producer = new Producer(this);
     this.producers = this.producers + 1;
     producer.lifespan.then(() => {
       this.producers = this.producers - 1;
@@ -84,7 +81,7 @@ class Engine extends EventEmitter {
   }
 
   createConsumer() {
-    const consumer = new Consumer(this.addListener, this.lifespan);
+    const consumer = new Consumer(this);
     this.consumers = this.consumers + 1;
     consumer.lifespan.then(() => {
       this.consumers = this.consumers - 1;
@@ -101,5 +98,7 @@ class Engine extends EventEmitter {
     return this;
   }
 }
+
+_Engine = Engine;
 
 export default { Consumer, Producer, Engine };
