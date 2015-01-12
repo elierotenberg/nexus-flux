@@ -1,6 +1,5 @@
 import Remutable from 'remutable';
 const { Patch } = Remutable;
-import through from 'through2';
 
 import Store from './Store';
 import Action from './Action';
@@ -9,58 +8,66 @@ import { Event } from './Client.Event';
 
 const INT_MAX = 9007199254740992;
 
-let _Client;
+/**
+ * @abstract
+ */
+class Client {
+  constructor(clientID = _.uniqueId(`Client${_.random(1, INT_MAX - 1)}`)) {
+    if(__DEV__) {
+      clientID.should.be.a.String;
+      this.fetch.should.not.be.exactly(Client.prototype.fetch);
+      this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer);
+    }
+    this.lifespan = new Promise((resolve) => this.release = resolve);
+    _.bindAll(this);
+    this._clientID = clientID;
+    this._stores = {};
+    this._refetching = {};
+    this._actions = {};
+    this._prefetched = null;
+    this.lifespan.then(() => {
+      this._clientID = null;
+      this._stores = null;
+      this._refetching = null;
+      this._actions = null;
+      this._prefetched = null;
+    });
 
-const ClientDuplex = through.ctor({ objectMode: true, allowHalfOpen: false },
-  function receive(ev, enc, done) { // server send a client (through adapter)
+    this.sendToServer(new Client.Event.Open({ clientID }));
+  }
+
+  /**
+   * @virtual
+   */
+  fetch(path, hash) {
+    if(__DEV__) {
+      path.should.be.a.String;
+      (hash === null || _.isString(hash)).should.be.true;
+    }
+    throw new TypeError('Virtual method invocation.');
+  }
+
+  /**
+   * @virtual
+   */
+  sendToServer(ev) {
+    if(__DEV__) {
+      ev.should.be.an.instanceOf(Client.Event);
+    }
+    throw new TypeError('Virtual method invocation.');
+  }
+
+  receiveFromServer(ev) {
     if(__DEV__) {
       ev.should.be.an.instanceOf(Server.Event);
     }
     if(ev instanceof Server.Event.Update) {
-      this._update(ev.path, ev.patch);
-      return done(null);
+      return this._update(ev.path, ev.patch);
     }
     if(ev instanceof Server.Event.Delete) {
-      this._delete(ev.path);
-      return done(null);
+      return this._delete(ev.path);
     }
-    done(new TypeError(`Unknown event: ${ev}`));
-  },
-  function flush(done) { // server is done sending (through adapter)
-    this.push(new _Client.Event.Close());
-    this.resolve();
-    done(null);
-  }
-);
-
-function isAdapter(adapter) { // client adapter ducktyping
-  // an adapter is just a Duplex stream which implements 'fetch'
-  return (adapter.should.have.property('pipe').which.is.a.Function) && _.isFunction(adapter.fetch);
-}
-
-class Client extends ClientDuplex {
-  constructor(adapter, clientID = _.uniqueId(`Client${_.random(1, INT_MAX - 1)}`)) {
-    if(__DEV__) {
-      isAdapter(adapter).should.be.true;
-      clientID.should.be.a.String;
-    }
-    super();
-    _.bindAll(this);
-
-    Object.assign(this, {
-      clientID,
-      lifespan: new Promise((resolve) => this.resolve = resolve),
-      _stores: {},
-      _refetching: {},
-      _actions: {},
-      _fetch: adapter.fetch,
-      _prefetched: null,
-    });
-
-    adapter.pipe(this); // adapter sends us server events
-    this.pipe(adapter); // we send adapter client events
-
-    this.push(new Client.Event.Open({ clientID }));
+    throw new TypeError(`Unknown event: ${ev}`);
   }
 
   import(prefetched) {
@@ -99,7 +106,7 @@ class Client extends ClientDuplex {
       lifespan.should.have.property('then').which.is.a.Function;
     }
     const { engine } = this._stores[path] || (() => { // if we don't know this store yet, then subscribe
-      this.push(new Client.Event.Subscribe({ path }));
+      this.sendToServer(new Client.Event.Subscribe({ path }));
       const prefetched = this._prefetched !== null && this._prefetched[path] !== void 0 ? this._prefetched[path] : null;
       const engine = new Store.Engine(prefetched);
       const store = this._stores[path] = {
@@ -116,7 +123,7 @@ class Client extends ClientDuplex {
     consumer.lifespan.then(() => { // Stores without consumers are removed
       if(engine.consumers === 0) { // if we don't have anymore consumers, then unsubscribe
         engine.release();
-        this.push(new Client.Event.Unsubscribe({ path }));
+        this.sendToServer(new Client.Event.Unsubscribe({ path }));
         delete this._stores[path];
       }
     });
@@ -134,7 +141,7 @@ class Client extends ClientDuplex {
       return this._actions[path] = {
         engine,
         consumer: engine.createConsumer()
-        .onDispatch((params) => this.push(new Client.Event.Dispatch({ path, params }))),
+        .onDispatch((params) => this.sendToServer(new Client.Event.Dispatch({ path, params }))),
       };
     })();
     const producer = engine.createProducer();
@@ -187,7 +194,7 @@ class Client extends ClientDuplex {
     }
     this._stores[path].refetching = true;
     // we use the fetch method from the adapter
-    return this._fetch(path, target).then((remutable) => this._upgrade(path, remutable));
+    return this.fetch(path, target).then((remutable) => this._upgrade(path, remutable));
   }
 
   _upgrade(path, next) {
@@ -219,8 +226,6 @@ class Client extends ClientDuplex {
   }
 }
 
-_Client = Client;
-
-Object.assign(Client, { Event, isAdapter });
+Object.assign(Client, { Event });
 
 export default Client;
