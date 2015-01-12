@@ -1,5 +1,6 @@
 import Remutable from 'remutable';
 const { Patch } = Remutable;
+import Lifespan from 'lifespan';
 
 import Store from './Store';
 import Action from './Action';
@@ -18,14 +19,14 @@ class Client {
       this.fetch.should.not.be.exactly(Client.prototype.fetch);
       this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer);
     }
-    this.lifespan = new Promise((resolve) => this.release = resolve);
+    this.lifespan = new Lifespan();
     _.bindAll(this);
     this._clientID = clientID;
     this._stores = {};
     this._refetching = {};
     this._actions = {};
     this._prefetched = null;
-    this.lifespan.then(() => {
+    this.lifespan.onRelease(() => {
       this._clientID = null;
       this._stores = null;
       this._refetching = null;
@@ -103,7 +104,7 @@ class Client {
   Store(path, lifespan) { // returns a Store consumer
     if(__DEV__) {
       path.should.be.a.String;
-      lifespan.should.have.property('then').which.is.a.Function;
+      lifespan.should.be.an.instanceOf(Lifespan);
     }
     const { engine } = this._stores[path] || (() => { // if we don't know this store yet, then subscribe
       this.sendToServer(new Client.Event.Subscribe({ path }));
@@ -120,21 +121,22 @@ class Client {
       return this._stores[path];
     })();
     const consumer = engine.createConsumer();
-    consumer.lifespan.then(() => { // Stores without consumers are removed
-      if(engine.consumers === 0) { // if we don't have anymore consumers, then unsubscribe
-        engine.release();
+    consumer.lifespan.onRelease(() => {
+      if(engine.consumers === 0) {
+        this._stores[path].producer.lifespan.release();
+        this._stores[path].engine.lifespan.release();
         this.sendToServer(new Client.Event.Unsubscribe({ path }));
         delete this._stores[path];
       }
     });
-    lifespan.then(consumer.release);
+    lifespan.onRelease(consumer.release);
     return consumer;
   }
 
   Action(path, lifespan) { // returns an Action producer
     if(__DEV__) {
       path.should.be.a.String;
-      lifespan.should.have.property('then').which.is.a.Function;
+      lifespan.should.be.an.instanceOf(Lifespan);
     }
     const { engine } = this._actions[path] || (() => { // if we don't know this action yet, start observing it
       const engine = new Action.Engine();
@@ -145,13 +147,14 @@ class Client {
       };
     })();
     const producer = engine.createProducer();
-    producer.lifespan.then(() => { // Actions without producers are removed
-      if(engine.producers === 0) { // when we don't have anymore producers, we stop observing it
-        engine.release();
+    producer.lifespan.onRelease(() => {
+      if(engine.producers === 0) {
+        this._actions[path].consumer.lifespan.release();
+        this._actions[path].engine.lifespan.release();
         delete this._actions[path];
       }
     });
-    lifespan.then(producer.release);
+    lifespan.onRelease(producer.release);
     return producer;
   }
 

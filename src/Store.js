@@ -1,5 +1,6 @@
 import asap from 'asap';
-import EventEmitter from './EventEmitter';
+import { EventEmitter } from 'nexus-events';
+import Lifespan from 'lifespan';
 import Remutable from 'remutable';
 const { Patch } = Remutable;
 
@@ -14,8 +15,8 @@ class Producer {
     }
     _.bindAll(this);
     Object.assign(this, {
-      engine,
-      lifespan: Promise.any([engine.lifespan, new Promise((resolve) => this.release = resolve)]),
+      _engine: engine,
+      lifespan: new Lifespan(),
     });
     // proxy getters to engine.remutableProducers
     ['head', 'working', 'hash', 'version']
@@ -32,7 +33,7 @@ class Producer {
   }
 
   set() { // set is chainable
-    this.engine.remutableProducer.set.apply(this.engine.remutableProducer, arguments);
+    this._engine.remutableProducer.set.apply(this.engine.remutableProducer, arguments);
     return this;
   }
 }
@@ -42,11 +43,9 @@ class Consumer {
     if(__DEV__) {
       engine.should.be.an.instanceOf(_Engine);
     }
-    const { addListener, remutableConsumer, lifespan } = engine;
     Object.assign(this, {
-      addListener,
-      remutableConsumer,
-      lifespan: Promise.any([lifespan, new Promise((resolve) => this.release = resolve)]),
+      _engine: engine,
+      lifespan: new Lifespan(),
     });
     _.bindAll(this);
 
@@ -73,7 +72,7 @@ class Consumer {
     if(__DEV__) {
       fn.should.be.a.Function;
     }
-    this.addListener(EVENTS.UPDATE, fn, this.lifespan);
+    this._engine.addListener(EVENTS.UPDATE, fn, this.lifespan);
     if(__DEV__) {
       this._onUpdateHandlers = this._onUpdateHandlers + 1;
     }
@@ -84,7 +83,7 @@ class Consumer {
     if(__DEV__) {
       fn.should.be.a.Function;
     }
-    this.addListener(EVENTS.DELETE, fn, this.lifespan);
+    this._engine.addListener(EVENTS.DELETE, fn, this.lifespan);
     if(__DEV__) {
       this._onDeleteHandlers = this._onDeleteHandlers + 1;
     }
@@ -102,32 +101,35 @@ class Engine extends EventEmitter {
       });
     }
     super();
+    this.lifespan = new Lifespan();
     this.remutable = new Remutable(init);
     this.remutableProducer = this.remutable.createProducer();
     this.remutableConsumer = this.remutable.createConsumer();
-    this.lifespan = new Promise((resolve) => this.release = resolve);
     _.bindAll(this);
     this.consumers = 0;
     this.producers = 0;
+    this.lifespan.onRelease(() => {
+      if(__DEV__) {
+        this.consumers.should.be.exactly(0);
+        this.producers.should.be.exactly(0);
+      }
+      this.remutable = null;
+      this.remutableConsumer = null;
+      this.remutableProducer = null;
+    });
   }
 
   createProducer() {
     const producer = new Producer(this);
     this.producers = this.producers + 1;
-    producer.lifespan.then(() => {
-      this.producers = this.producers - 1;
-    });
-    this.lifespan.then(() => producer.release());
+    producer.lifespan.onRelease(() => this.producers = this.producers - 1);
     return producer;
   }
 
   createConsumer() {
     const consumer = new Consumer(this);
     this.consumers = this.consumers + 1;
-    consumer.lifespan.then(() => {
-      this.consumers = this.consumers - 1;
-    });
-    this.lifespan.then(() => consumer.release());
+    consumer.lifespan.onRelease(() => this.consumers = this.consumers - 1);
     return consumer;
   }
 
@@ -142,13 +144,6 @@ class Engine extends EventEmitter {
   commit() {
     const patch = this.remutable.commit();
     this.emit(EVENTS.UPDATE, this.remutableConsumer, patch);
-  }
-
-  delete() {
-    this.emit(EVENTS.DELETE);
-    this.remutable = null;
-    this.remutableProducer = null;
-    this.remutableConsumer = null;
   }
 }
 

@@ -1,5 +1,6 @@
 import asap from 'asap';
-import EventEmitter from './EventEmitter';
+import { EventEmitter } from 'nexus-events';
+import Lifespan from 'lifespan';
 
 const EVENTS = { DISPATCH: 'd' };
 let _Engine;
@@ -9,11 +10,11 @@ class Producer {
     if(__DEV__) {
       engine.should.be.an.instanceOf(_Engine);
     }
+    _.bindAll(this);
     Object.assign(this, {
       _engine: engine,
-      lifespan: Promise.any([engine.lifespan, new Promise((resolve) => this.release = resolve)]),
+      lifespan: new Lifespan(),
     });
-    _.bindAll(this);
   }
 
   dispatch(params) {
@@ -32,7 +33,7 @@ class Consumer {
     }
     Object.assign(this, {
       _engine: engine,
-      lifespan: Promise.any([engine.lifespan, new Promise((resolve) => this.release = resolve)]),
+      lifespan: new Lifespan(),
     });
     _.bindAll(this);
 
@@ -64,29 +65,31 @@ class Consumer {
 class Engine extends EventEmitter {
   constructor() {
     super();
-    this.lifespan = new Promise((resolve) => this.release = resolve);
+    this.lifespan = new Lifespan();
     _.bindAll(this);
     this.consumers = 0;
     this.producers = 0;
+    this.lifespan.onRelease(() => {
+      if(__DEV__) {
+        this.consumers.should.be.exactly(0);
+        this.producers.should.be.exactly(0);
+      }
+      this.consumers = null;
+      this.producers = null;
+    });
   }
 
   createProducer() {
     const producer = new Producer(this);
     this.producers = this.producers + 1;
-    producer.lifespan.then(() => {
-      this.producers = this.producers - 1;
-    });
-    this.lifespan.then(() => producer.release());
+    producer.lifespan.onRelease(() => this.producers = this.producers - 1);
     return producer;
   }
 
   createConsumer() {
     const consumer = new Consumer(this);
     this.consumers = this.consumers + 1;
-    consumer.lifespan.then(() => {
-      this.consumers = this.consumers - 1;
-    });
-    this.lifespan.then(() => consumer.release());
+    consumer.lifespan.onRelease(() => this.consumers = this.consumers - 1);
     return consumer;
   }
 

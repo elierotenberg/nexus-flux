@@ -1,5 +1,5 @@
-import through from 'through2';
 import Remutable from 'remutable';
+import Lifespan from 'lifespan';
 
 import Store from './Store';
 import Action from './Action';
@@ -13,14 +13,15 @@ class Link {
   constructor() {
     if(__DEV__) {
       this.sendToClientLink.should.not.be.exactly(Link.prototype.sendToClientLink);
-      this.receiveFromClientLink.should.not.be.exactly(Link.prototype.receiveFromClientLink);
     }
-    this.lifespan = new Promise((resolve) => this.release = resolve);
+    this.lifespan = new Lifespan();
     _.bindAll(this);
     this._server = null;
+    this._linkID = null;
     this._clientID = null;
-    this.lifespan.then(() => {
+    this.lifespan.onRelease(() => {
       this._server = null;
+      this._linkID = null;
       this._clientID = null;
     });
   }
@@ -35,12 +36,13 @@ class Link {
     throw new Error(`Server.LinkLink should be extended and sendToClientLink should be implemented.`);
   }
 
-  attachServer(server) { // will be called by the server
+  acceptFromServer(server, linkID) { // will be called by the server
     if(__DEV__) {
       server.should.be.an.instanceOf(Server);
       (this._server === null).should.be.an.instanceOf(Server);
     }
     this._server = server;
+    this._linkID = linkID;
   }
 
   receiveFromServer(ev) { // will be called by server
@@ -56,36 +58,33 @@ class Link {
       (this._server !== null).should.be.true;
     }
     if(ev instanceof Client.Event.Open) {
-      this._clientID = ev.clientID;
+      this.clientID = ev.clientID;
     }
     if(ev instanceOf Client.Event.Close) {
-      this._clientID = null;
+      this.clientID = null;
     }
-    this._server.receiveFromLink(this._clientID, ev);
+    this._server.receiveFromLink(this, ev);
   }
 }
 
 class Server {
   constructor() {
     if(__DEV__) {
-      this.publish.should.not.be.exactly(Server.prototype.fetch);
+      this.publish.should.not.be.exactly(Server.prototype.publish);
     }
-    this.lifespan = new Promise((resolve) => this.release = resolve);
+    this.lifespan = new Lifespan();
     _.bindAll(this);
     this._stores = {};
     this._actions = {};
-    this.lifespan = new Promise((resolve) => this.release = resolve);
-    if(adapter.onConnection && _.isFunction(adapter.onConnection)) {
-      adapter.onConnection(this.accept, this.lifespan);
-    }
+    this._links = {};
   }
 
   accept(link) {
     if(__DEV__) {
-      link.should.have.property('pipe').which.is.a.Function;
+      link.should.be.an.instanceOf(Link);
     }
     const subscriptions = {};
-    let clientID = null;
+
 
     link.pipe(through.obj((ev, enc, done) => { // filter & pipe client events to the server
       if(__DEV__) {
