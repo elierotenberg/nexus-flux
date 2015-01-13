@@ -1,40 +1,8 @@
 "use strict";
 
-var _get = function get(object, property, receiver) {
-  var desc = Object.getOwnPropertyDescriptor(object, property);
-
-  if (desc === undefined) {
-    var parent = Object.getPrototypeOf(object);
-
-    if (parent === null) {
-      return undefined;
-    } else {
-      return get(parent, property, receiver);
-    }
-  } else if ("value" in desc && desc.writable) {
-    return desc.value;
-  } else {
-    var getter = desc.get;
-    if (getter === undefined) {
-      return undefined;
-    }
-    return getter.call(receiver);
-  }
-};
-
-var _inherits = function (child, parent) {
-  if (typeof parent !== "function" && parent !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + typeof parent);
-  }
-  child.prototype = Object.create(parent && parent.prototype, {
-    constructor: {
-      value: child,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    }
-  });
-  if (parent) child.__proto__ = parent;
+var _prototypeProperties = function (child, staticProps, instanceProps) {
+  if (staticProps) Object.defineProperties(child, staticProps);
+  if (instanceProps) Object.defineProperties(child.prototype, instanceProps);
 };
 
 var _interopRequire = function (obj) {
@@ -53,9 +21,11 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
-var through = _interopRequire(require("through2"));
-
 var Remutable = _interopRequire(require("remutable"));
+
+var Lifespan = _interopRequire(require("lifespan"));
+
+var sha256 = _interopRequire(require("sha256"));
 
 var Store = _interopRequire(require("./Store"));
 
@@ -67,213 +37,263 @@ var Client = _interopRequire(require("./Client.Event"));
 var Event = require("./Server.Event").Event;
 
 
-var ServerDuplex = through.ctor({ objectMode: true, allowHalfOpen: false }, function receiveFromLink(_ref, enc, done) {
-  var clientID = _ref.clientID;
-  var ev = _ref.ev;
-  try {
-    if (__DEV__) {
-      clientID.should.be.a.String;
-      ev.should.be.an.instanceOf(Client.Event);
-    }
-  } catch (err) {
-    return done(err);
-  }
-  this._receive({ clientID: clientID, ev: ev });
-  return done(null);
-}, function flush(done) {
-  this.release();
-  done(null);
-});
+var _Server = undefined;
 
-var Server = (function () {
-  var _ServerDuplex = ServerDuplex;
-  var Server = function Server(adapter) {
+/**
+ * @abstract
+ */
+var Link = (function () {
+  function Link() {
     var _this = this;
     if (__DEV__) {
-      adapter.should.be.an.instanceOf(Server.Adapter);
-      this.should.have.property("pipe").which.is.a.Function;
+      this.constructor.should.not.be.exactly(Link); // ensure abstracts
+      this.sendToClient.should.not.be.exactly(Link.prototype.sendToClient); // ensure virtual
     }
-    _get(Object.getPrototypeOf(Server.prototype), "constructor", this).call(this);
+    this.lifespan = new Lifespan();
+    _.bindAll(this);
+    this.receiveFromClient = null; // will be set by the server; should be called when received client events, to forward them to the server
+    this.lifespan.onRelease(function () {
+      _this.receiveFromClient = null;
+    });
+  }
+
+  _prototypeProperties(Link, null, {
+    sendToClient: {
+
+      /**
+       * @virtual
+       */
+      value: function (ev) {
+        // should forward the event to the associated client
+        if (__DEV__) {
+          ev.should.be.an.instanceOf(_Server.Event);
+        }
+        throw new TypeError("Virtual method invocation");
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    acceptFromServer: {
+      value: function (receiveFromClient) {
+        // will be called by the server
+        if (__DEV__) {
+          receiveFromClient.should.be.a.Function;
+        }
+        this.receiveFromClient = receiveFromClient;
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    receiveFromServer: {
+      value: function (ev) {
+        // will be called by server
+        if (__DEV__) {
+          ev.should.be.an.instanceOf(_Server.Event);
+        }
+        this.sendToClient(ev);
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }
+  });
+
+  return Link;
+})();
+
+/**
+ * @abstract
+ */
+var Server = (function () {
+  function Server() {
+    if (__DEV__) {
+      this.constructor.should.not.be.exactly(Server); // ensure abstracts
+      this.publish.should.not.be.exactly(Server.prototype.publish); // ensure virtual
+    }
+    this.lifespan = new Lifespan();
     _.bindAll(this);
     this._stores = {};
     this._actions = {};
-    this._publish = adapter.publish;
-    this.lifespan = new Promise(function (resolve) {
-      return _this.release = resolve;
-    });
-    if (adapter.onConnection && _.isFunction(adapter.onConnection)) {
-      adapter.onConnection(this.accept, this.lifespan);
-    }
-  };
+    this._links = {};
+  }
 
-  _inherits(Server, _ServerDuplex);
+  _prototypeProperties(Server, null, {
+    publish: {
 
-  Server.prototype.accept = function (link) {
-    if (__DEV__) {
-      link.should.have.property("pipe").which.is.a.Function;
-    }
-    var subscriptions = {};
-    var clientID = null;
-
-    link.pipe(through.obj(function (ev, enc, done) {
-      // filter & pipe client events to the server
-      if (__DEV__) {
-        ev.should.be.an.instanceOf(Client.Event);
-      }
-
-      if (ev instanceof Client.Event.Open) {
-        clientID = ev.clientID;
-        return done(null, { clientID: clientID, ev: ev });
-      }
-      if (ev instanceof Client.Event.Close) {
-        clientID = null;
-        return done(null, { clientID: clientID, ev: ev });
-      }
-      if (ev instanceof Client.Event.Subscribe) {
-        subscriptions[ev.path] = true;
-        return done(null);
-      }
-      if (ev instanceof Client.Event.Unsubscribe) {
-        if (subscriptions[ev.path]) {
-          delete subscriptions[ev.path];
+      /**
+       * @virtual
+       */
+      value: function (path, remutableConsumer) {
+        if (__DEV__) {
+          path.should.be.a.String;
+          remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
         }
-        return done(null);
-      }
-      if (ev instanceof Client.Event.Dispatch) {
-        if (clientID !== null) {
-          return done(null, { clientID: clientID, ev: ev });
+        throw new TypeError("Virtual method invocation");
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    acceptLink: {
+      value: function (link) {
+        var _this2 = this;
+        if (__DEV__) {
+          link.should.be.an.instanceOf(Link);
         }
-        return done(null);
-      }
-      return done(new TypeError("Unknown Client.Event: " + ev));
-    })).pipe(this);
 
-    this.pipe(through.obj(function (ev, enc, done) {
-      // filter & pipe server events to the client
-      if (__DEV__) {
-        ev.should.be.an.instanceOf(Server.Event);
-      }
-
-      if (ev instanceof Server.Event.Update) {
-        if (subscriptions[ev.path]) {
-          return done(null, ev);
+        var linkID = _.uniqueId();
+        this._links[linkID] = {
+          link: link,
+          subscriptions: {},
+          clientID: null };
+        link.acceptFromServer(function (ev) {
+          return _this2.receiveFromLink(linkID, ev);
+        });
+        link.lifespan.onRelease(function () {
+          delete _this2._links[linkID];
+        });
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    receiveFromLink: {
+      value: function (linkID, ev) {
+        if (__DEV__) {
+          linkID.should.be.a.String;
+          this._links.should.have.property(linkID);
+          ev.should.be.an.instanceOf(Client.Event);
         }
-        return done(null);
-      }
-      if (ev instanceof Server.Event.Delete) {
-        if (subscriptions[ev.path]) {
-          return done(null, ev);
+        if (ev instanceof Client.Event.Open) {
+          return this._links[linkID].clientID = ev.clientID;
         }
-        return done(null);
-      }
-      return done(new TypeError("Unknown Server.Event: " + ev));
-    })).pipe(link);
+        if (ev instanceof Client.Event.Close) {
+          return this._links[linkID].clientID = null;
+        }
+        if (ev instanceof Client.Event.Subscribe) {
+          return this._links[linkID].subscriptions[ev.path] = null;
+        }
+        if (ev instanceof Client.Event.Unsubscribe) {
+          if (this._links[linkID].subscriptions[ev.path] !== void 0) {
+            delete this._links[linkID].subscriptions[ev.path];
+            return;
+          }
+          return;
+        }
+        if (ev instanceof Client.Event.Dispatch) {
+          if (this._links[linkID].clientID !== null && this._actions[ev.path] !== void 0) {
+            // hash clientID. the action handlers shouldn't have access to it. (security issue)
+            return this._actions[ev.path].producer.dispatch(ev.params, sha256(this._links[linkID].clientID));
+          }
+          return;
+        }
+        if (__DEV__) {
+          throw new TypeError("Unknown Client.Event: " + ev);
+        }
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    sendToLinks: {
+      value: function (ev) {
+        if (__DEV__) {
+          ev.should.be.an.instanceOf(Server.Event);
+        }
+        if (ev instanceof Server.Event.Update || ev instanceof Server.Event.Delete) {
+          return _.each(this._links, function (_ref) {
+            var link = _ref.link;
+            var subscriptions = _ref.subscriptions;
+            if (subscriptions[ev.path] !== void 0) {
+              link.receiveFromServer(ev);
+            }
+          });
+        }
+        if (__DEV__) {
+          throw new TypeError("Unknown Server.Event type: " + ev);
+        }
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    Store: {
+      value: function (path, lifespan) {
+        var _this3 = this;
+        if (__DEV__) {
+          path.should.be.a.String;
+          lifespan.should.be.an.instanceOf(Lifespan);
+        }
 
-    return link;
-  };
+        var _ref2 = this._stores[path] || (function () {
+          var _engine = new Store.Engine();
+          var consumer = _engine.createConsumer().onUpdate(function (consumer, patch) {
+            _this3.publish(path, consumer);
+            _this3.sendToLinks(new Server.Event.Update({ path: path, patch: patch }));
+          }).onDelete(function () {
+            return _this3.sendToLinks(new Server.Event.Delete({ path: path }));
+          });
+          // immediatly publish the (empty) store
+          _this3.publish(path, _engine.remutableConsumer);
+          return _this3._stores[path] = { engine: _engine, consumer: consumer };
+        })();
+        var engine = _ref2.engine;
+        var producer = engine.createProducer();
+        producer.lifespan.onRelease(function () {
+          if (engine.producers === 0) {
+            _this3._stores[path].consumer.release();
+            engine.lifespan.release();
+            delete _this3._stores[path];
+          }
+        });
+        lifespan.onRelease(producer.lifespan.release);
+        return producer;
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    Action: {
+      value: function (path, lifespan) {
+        var _this4 = this;
+        if (__DEV__) {
+          path.should.be.a.String;
+          lifespan.should.be.an.instanceOf(Lifespan);
+        }
 
-  Server.prototype._receive = function (_ref2) {
-    var clientID = _ref2.clientID;
-    var ev = _ref2.ev;
-    if (__DEV__) {
-      clientID.should.be.a.String;
-      ev.should.be.an.instanceOf(Client.Event);
+        var _ref3 = this._actions[path] || (function () {
+          var _engine2 = new Action.Engine();
+          var producer = _engine2.createProducer();
+          return _this4._actions[path] = {
+            engine: _engine2,
+            producer: producer };
+        })();
+        var engine = _ref3.engine;
+        var consumer = engine.createConsumer();
+        consumer.lifespan.onRelease(function () {
+          if (engine.consumers === 0) {
+            _this4._actions[path].producer.release();
+            engine.lifespan.release();
+            delete _this4._actions[path];
+          }
+        });
+        lifespan.onRelease(consumer.lifespan.release);
+        return consumer;
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
     }
-    if (ev instanceof Client.Event.Dispatch) {
-      var path = ev.path;
-      var params = ev.params;
-      if (__DEV__) {
-        path.should.be.a.String;
-        (params === null || _.isObject(params)).should.be["true"];
-      }
-      if (this._actions[path] !== void 0) {
-        return this._actions[path].producer.dispatch({ clientID: clientID, params: params });
-      }
-    }
-  };
-
-  Server.prototype.Store = function (path, lifespan) {
-    var _this2 = this;
-    if (__DEV__) {
-      path.should.be.a.String;
-    }
-
-    var _ref3 = this._stores[path] || (function () {
-      var _engine = new Store.Engine();
-      var consumer = _engine.createConsumer().onUpdate(function (consumer, patch) {
-        _this2._publish(path, consumer);
-        _this2.push(new Server.Event.Update({ path: path, patch: patch }));
-      }).onDelete(function () {
-        return _this2.push(new Server.Event.Delete({ path: path }));
-      });
-      // immediatly publish the (empty) store
-      _this2._publish(path, _engine.remutableConsumer);
-      return _this2._stores[path] = { engine: _engine, consumer: consumer };
-    })();
-    var engine = _ref3.engine;
-    var producer = engine.createProducer();
-    producer.lifespan.then(function () {
-      if (engine.producers === 0) {
-        engine.release();
-        delete _this2._stores[path];
-      }
-    });
-    lifespan.then(producer.release);
-    return producer;
-  };
-
-  Server.prototype.Action = function (path, lifespan) {
-    var _this3 = this;
-    if (__DEV__) {
-      path.should.be.a.String;
-    }
-
-    var _ref4 = this._actions[path] || (function () {
-      var _engine2 = new Action.Engine();
-      var producer = _engine2.createProducer();
-      return _this3._actions[path] = {
-        engine: _engine2,
-        producer: producer };
-    })();
-    var engine = _ref4.engine;
-    var consumer = engine.createConsumer();
-    consumer.lifespan.then(function () {
-      if (engine.consumers === 0) {
-        engine.release();
-        delete _this3._actions[path];
-      }
-    });
-    lifespan.then(consumer.release);
-    return consumer;
-  };
+  });
 
   return Server;
 })();
 
-var Adapter = function Adapter() {
-  if (__DEV__) {
-    this.should.have.property("publish").which.is.a.Function.and.is.not.exactly(Adapter.prototype.publish);
-    this.should.have.property("onConnection").which.is.a.Function.and.is.not.exactly(Adapter.prototype.onConnection);
-  }
-};
-
-Adapter.prototype.publish = function (path, consumer) {
-  if (__DEV__) {
-    path.should.be.an.instanceOf(path);
-    consumer.should.be.an["instanceof"](Remutable.Consumer);
-  }
-  throw new TypeError("Server.Adapter should implement publish(path: String, remutable: Remutable): void 0");
-};
-
-Adapter.prototype.onConnection = function (accept, lifespan) {
-  if (__DEV__) {
-    accept.should.be.a.Function;
-    lifespan.should.have.property("then").which.is.a.Function;
-  }
-  throw new TypeError("Server.Adapter should implement onConnection(fn: Function(client: Duplex): void 0, lifespan: Promise): void 0");
-};
+_Server = Server;
 
 Server.Event = Event;
-Server.Adapter = Adapter;
+Server.Link = Link;
 
 module.exports = Server;

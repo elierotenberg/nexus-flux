@@ -96,14 +96,14 @@ class Engine extends EventEmitter {
     return consumer;
   }
 
-  dispatch(params, clientID) {
+  dispatch(params, clientHash) {
     if(__DEV__) {
       params.should.be.an.Object;
-      if(clientID !== void 0) {
-        clientID.should.be.a.String;
+      if(clientHash !== void 0) {
+        clientHash.should.be.a.String;
       }
     }
-    this.emit(EVENTS.DISPATCH, params, clientID);
+    this.emit(EVENTS.DISPATCH, params, clientHash);
     return this;
   }
 }

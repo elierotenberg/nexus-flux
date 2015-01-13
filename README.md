@@ -73,7 +73,7 @@ Nexus Flux is built with React, Nexus Uplink and React Nexus in mind, but it is 
 ```js
 {
   getInitialState() {
-    this.lifespan = new Promise((resolve) => this.unmount = resolve);
+    this.lifespan = new Lifespan();
     return {
       todoList: this.props.flux.Store('/todo-list', this.lifespan).value,
     };
@@ -81,13 +81,13 @@ Nexus Flux is built with React, Nexus Uplink and React Nexus in mind, but it is 
 
   componentWillMount() {
     this.props.flux.Store('/todo-list', this.lifespan)
-    .onUpdate((todoList) => this.setState({ todoList }))
+    .onUpdate(({ head }) => this.setState({ todoList: head }))
     .onDelete(() => this.setState({ todoList: void 0 }));
     this.removeItem = this.props.flux.Action('/remove-item', this.lifespan).dispatch;
   }
 
   componentWillUnmount() {
-    this.unmount();
+    this.lifespan.release();
   }
 
   render() {
@@ -103,8 +103,8 @@ Nexus Flux is built with React, Nexus Uplink and React Nexus in mind, but it is 
 #### Server usage example
 
 ```js
-const todoList = server.Store('/todo-list');
-const removeItem = server.Action('/remove-item');
+const todoList = server.Store('/todo-list', myApp.lifespan);
+const removeItem = server.Action('/remove-item', myApp.lifespan);
 
 todoList
 .set('first', { description: 'My first item' })
@@ -124,28 +124,29 @@ This implements the orthodox Flux for in-app data propagation.
 You can check the adapter from [its source](https://github.com/elierotenberg/nexus-flux/tree/master/src/LocalAdapter.js), which is trivial.
 
 ```js
-// init a shared state object; will be used by the LocalAdapter Server/Clients
-const state = { buffer: null, server: null };
-const server = new Server(new LocalAdapter.Server(state));
-const client = new Client(new LocalAdapter.Client(state));
+import { Server, Client } from 'nexus-flux/adapters/Local';
+const server = new Server();
+const client = new Client(server);
 // use the server and client instance like above.
 ```
 
-#### Implementation example: flux over the wire using nexus-flux-socket.io (WIP)
+#### Flux over the wire using nexus-flux-socket.io (TBD)
 
 Share global server-side app state across all connected clients.
 
 ```js
 // Client side: runs in the browser or in a node process
-const client = new Client(new SocketIOAdapter.Client('http://localhost:8080'));
+import Client from 'nexus-flux-socket.io/client';
+const client = SocketIOClient('http://localhost:8080'));
 ```
 
 ```js
 // Server side: runs in a node process, which may or may not be the same process
-const server = new Server(new SocketIOAdapter.Server({ port: 8080, maxClients: 50000 });
+import Server from 'nexus-flux-socket.io/server';
+const server = new Server({ port: 8080, maxClients: 50000 });
 ```
 
-#### Implementation example: off-thread local flux using WebWorkerAdapter (included in this package) (WIP)
+#### In browser, off-thread local flux using nexus-flux/adapters/Worker (TBD)
 
 Defer expensive app-state data calculations off the main thread to avoid blocking UI.
 
@@ -153,45 +154,48 @@ You can check the adapter from [its source](https://github.com/elierotenberg/nex
 
 ```js
 // Client side: runs in the main thread
+import { Client } from 'nexus-flux/adapters/Worker';
 const worker = new Worker('my-web-worker.js');
-const client = new Client(new WebworkerAdapter.Client(worker));
+const client = new Client(worker);
 ```
 
 ```js
 // Server side: runs in the webworker
-const server = new Server(new WebWorkerAdapter.Server());
+import { Server } from 'nexus-flux/adapters/Worker';
+const server = new Server(self);
 ```
 
-#### Implementation example: cross-window flux using nexus-flux-xwindow (WIP)
+#### Cross-window flux using nexus-flux-xwindow (TBD)
 
 Communicate between windows from the same origin using the flux architecture.
 
 ```js
 // Client side: runs in the child window
-const client = new Client(new XWindowAdapter.Client({ window: window.parent }));
+import { Client } from 'nexus-flux/adapters/XWindow';
+const client = new Client(window.parent);
 ```
 
 ```js
 // Server side: runs in the parent window
-// Restrict access to the opened window
-const w = window.open(...);
-const server = new Server(new XWindowAdapter.Server({ accept: [w] }));
+import { Server } from 'nexus-flux/adapters/XWindow';
+const server = new Server(window);
 ```
 
-#### Implementation example: node-to-node TCP flux using nexus-flux-node (WIP)
+#### Node-to-node TCP flux using nexus-flux-node (TBD)
 
 Communicate between node servers using the flux architecture.
 
 ```js
 // Client side: runs in a node process
-const client = new Client(new NodeAdapter.Client('http://192.168.0.1:8080'));
+import { Client } from 'nexus-flux/adapters/TCP';
+const client = new Client('192.168.0.1', 8080);
 ```
 
 ```js
 // Server side: runs in a node process, which may or may not be the same process
-const server = new Server(new NodeAdapter.Server({ port: 8080 }));
+import { Server } from 'nexus-flux/adapters/TCP';
+const server = new Server(8080);
 ```
-
 
 #### Implement your own adapter!
 

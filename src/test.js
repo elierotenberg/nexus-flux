@@ -1,67 +1,76 @@
-import { Client, Server, LocalAdapter } from '../';
+import Lifespan from 'lifespan';
+import { Client, Server } from '../Local';
 
-// shared state
-const state = { buffer: null, server: null };
+const server = new Server();
+const client = new Client(server);
 
-_.defer(function() { // server main
-  // this Promise represents the lifespan of the server; it resolves when the server dies.
-  let release;
-  const lifespan = new Promise((resolve) => release = resolve);
-  // insanciate the server, make it publish to the shared state
-  const server = new Server(new LocalAdapter.Server(state));
-  // create a new store at the '/clock' path
-  const clock = server.Store('/clock', lifespan);
-  // create a new store at the '/list' path
-  const list = server.Store('/list', lifespan);
-  // initialize the list store with { length: 0 } and immediatly commit
-  list.set('length', 0).commit();
-  const i = setInterval(() => { // every 1 sec, perform some updates and commit them immediatly
-    clock.set('date', Date.now()).commit(); // commit per store
-    list.set(`${list.head.get('length')}`, _.random(0, 10))
-    .set('length', list.head.get('length') + 1)
-    .commit(); // this commit will be relatively lightweight and its size is not related to the size of the list
-  }, 1000);
-  // whenever the server dies, clear this loop
-  lifespan.then(() => clearInterval(i));
+server.lifespan.onRelease(() => console.log('server released'));
+client.lifespan.onRelease(() => console.log('client released'));
 
-  server.Action('/ping', lifespan)
-  .onDispatch((payload) => {
-    console.warn('pong', payload);
+_.defer(() => { // server main
+  const clock = server.Store('/clock', server.lifespan); // create a new store, initally empty ({})
+  clock.set('date', Date.now()).commit(); // initialize it with a single field, date, and commit it immediatly
+  const todoList = server.Store('/todoList', server.lifespan); // create another store, initially empty({})
+
+  server.lifespan.setInterval(() => clock.set('date', Date.now()).commit(), 500); // update clock every 500ms
+
+  server.Action('/addItem', server.lifespan) // register a new action
+  .onDispatch(({ name, description }, clientHash) => { // register an Action handler
+    if(todoList.get(name) !== void 0) { // ignore if we already know this task
+      return;
+    }
+    console.log(`${clientHash} added task ${name} (${description}).`);
+    todoList.set(name, { description, clientHash }).commit(); // add an item to the todolist and commit
   });
 
-  setTimeout(release, 11000); // at some point in the future, shutdown the server
+  server.Action('/removeItem', server.lifespan) // register a new action
+  .onDispatch(({ name }, clientHash) => { // register another action handler
+    if(todoList.working.get(name) === void 0) { // if we don't have this action, dismiss
+      return;
+    }
+    if(todoList.working.get(name).clientHash !== clientHash) { // if this client hasn't set this item, dismiss
+      return;
+    }
+    console.log(`removed item ${name}`);
+    todoList.unset(name, void 0).commit(); // remove the item and commit
+  });
+
+  server.lifespan.setTimeout(server.lifespan.release, 10000); // release the server in 10000ms
 });
 
-_.defer(function() { // client main
-  // this Promise repesents the lifespan of the client
-  let release;
-  const lifespan = new Promise((resolve) => release = resolve);
-  // instanciate the client, make it fetch from the shared state
-  const client = new Client(new LocalAdapter.Client(state));
-  const ping = client.Action('/ping', lifespan);
-  // subscribe to the store at the '/clock' path
-  client.Store('/clock', lifespan)
-  .onUpdate(({ head }) => { // whenever it updates, print the new value
-    console.warn('new date', head.get('date'));
+_.defer(() => { // client main
+  const addItem = client.Action('/addItem', client.lifespan).dispatch; // register 2 actions dispachers
+  const removeItem = client.Action('/removeItem', client.lifespan).dispatch;
+
+  client.Store('/clock', client.lifespan) // subscribe to a store
+  .onUpdate(({ head }) => { // every time its updated (including when its first fetched), display the modified value (it is an Immutable.Map)
+    console.log('clock tick', head.get('date'));
   })
-  .onDelete(() => { // wheneve its deleted, print it
-    console.warn('deleted date');
+  .onDelete(() => { // if its deleted, then do something appropriate
+    console.log('clock deleted');
   });
 
-  // subscribe to the store at the '/list' path
-  client.Store('/list', lifespan)
-  .onUpdate(({ head }, patch) => { // whenever it update, print the new value and the serialized patch object
-    console.warn('new list', head, patch.toJSON());
+  const todoListLifespan = new Lifespan(); // this store subscribers has a limited lifespan (eg. a React components' own lifespan)
+  const todoList = client.Store('/todoList', todoListLifespan)
+  .onUpdate(({ head }, patch) => { // when its updated, we can access not only the up-to-date head, but also the underlying patch object,
+    console.log('received todoList patch:', patch); // if we want to do something with it (we can just ignore it as above)
+    console.log('todoList head is now:', head.toJS());
   })
-  .onDelete(() => { // whenever its deleted, print it
-    console.warn('deleted list');
+  .onDelete(() => {
+    console.log('todoList deleted');
   });
 
-  const i = setInterval(() => {
-    ping.dispatch({ timestamp: Date.now() });
-  }, 1200);
-
-  lifespan.then(() => clearInterval(i));
-
-  setTimeout(release, 10000); // at some point in the future, shutdown the client
+  addItem({ name: 'Harder', description: 'Code harder' }); // dispatch some actions
+  addItem({ name: 'Better', description: 'Code better' });
+  client.lifespan
+  .setTimeout(() => addItem({ name: 'Faster', description: 'Code Faster' }), 1000) // add a new item in 1000ms
+  .setTimeout(() => removeItem({ name: 'Harder' }), 2000) // remove an item in 2000ms
+  .setTimeout(() => addItem({ name: 'Stronger', description: 'Code stronger' }), 3000) // add an item in 3000ms
+  .setTimeout(() => {
+    todoList.value.forEach(({ description }, name) => { // remove every item in 4000
+      removeItem({ name });
+    })
+  }, 4000)
+  .setTimeout(todoListLifespan.release, 5000) // release the subscriber in 5000ms
+  .setTimeout(client.lifespan.release, 6000); // release the client in 6000ms
 });

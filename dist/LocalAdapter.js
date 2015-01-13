@@ -1,5 +1,10 @@
 "use strict";
 
+var _prototypeProperties = function (child, staticProps, instanceProps) {
+  if (staticProps) Object.defineProperties(child, staticProps);
+  if (instanceProps) Object.defineProperties(child.prototype, instanceProps);
+};
+
 var _get = function get(object, property, receiver) {
   var desc = Object.getOwnPropertyDescriptor(object, property);
 
@@ -22,19 +27,19 @@ var _get = function get(object, property, receiver) {
   }
 };
 
-var _inherits = function (child, parent) {
-  if (typeof parent !== "function" && parent !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + typeof parent);
+var _inherits = function (subClass, superClass) {
+  if (typeof superClass !== "function" && superClass !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
   }
-  child.prototype = Object.create(parent && parent.prototype, {
+  subClass.prototype = Object.create(superClass && superClass.prototype, {
     constructor: {
-      value: child,
+      value: subClass,
       enumerable: false,
       writable: true,
       configurable: true
     }
   });
-  if (parent) child.__proto__ = parent;
+  if (superClass) subClass.__proto__ = superClass;
 };
 
 var _interopRequire = function (obj) {
@@ -55,137 +60,126 @@ if (__DEV__) {
 }
 var Remutable = _interopRequire(require("remutable"));
 
-var through = _interopRequire(require("through2"));
-
-var EventEmitter = require("events").EventEmitter;
 var Client = _interopRequire(require("./Client"));
 
 var Server = _interopRequire(require("./Server"));
 
-// Client -> ClientAdapter -> Link -> Server
-// Server -> Link -> ClientAdapter -> Client
+var Link = Server.Link;
 
-var CONNECTION = "c"; // connection event name
 
-var _ServerAdapter = undefined;
+var _LocalServer = undefined,
+    _LocalLink = undefined;
 
-var ClientAdapterDuplex = through.ctor({ objectMode: true, allowHalfOpen: false }, function receiveFromClient(clientEvent, enc, done) {
-  // receive from Client
-  try {
-    if (__DEV__) {
-      clientEvent.should.be.an.instanceOf(Client.Event);
-    }
-  } catch (err) {
-    return done(err);
-  }
-  this._sendToLink(clientEvent);
-  return done(null);
-});
-
-var ClientAdapter = (function () {
-  var _ClientAdapterDuplex = ClientAdapterDuplex;
-  var ClientAdapter = function ClientAdapter(state) {
+var LocalClient = (function (Client) {
+  function LocalClient(server, clientID) {
     var _this = this;
     if (__DEV__) {
-      state.should.be.an.Object;
-      state.should.have.property("buffer").which.is.an.Object;
-      state.should.have.property("server").which.is.an.instanceOf(_ServerAdapter);
+      server.should.be.an.instanceOf(_LocalServer);
     }
-    _get(Object.getPrototypeOf(ClientAdapter.prototype), "constructor", this).call(this); // will be piped to and from the client
-    _.bindAll(this);
-    this._buffer = state.buffer;
-    this.link = through.obj(function (serverEvent, enc, done) {
-      // receive from server
-      try {
-        if (__DEV__) {
-          serverEvent.should.be.an.instanceOf(Server.Event);
-        }
-      } catch (err) {
-        return done(err);
-      }
-      _this._sendToClient(serverEvent);
-      return done(null);
-    }); // will be pipe to and from serverq
-    state.server.connect(this.link); // immediatly connect
-  };
-
-  _inherits(ClientAdapter, _ClientAdapterDuplex);
-
-  ClientAdapter.prototype.fetch = function (path) {
-    var _this2 = this;
-    var hash = arguments[1] === undefined ? null : arguments[1];
-    // ignore hash
-    return Promise["try"](function () {
-      if (__DEV__) {
-        path.should.be.a.String;
-        (_.isNull(hash) || _.isString(hash)).should.be["true"];
-        _this2._buffer.should.have.property(path);
-      }
-      return _this2._buffer[path];
+    this._server = server;
+    this._link = new _LocalLink(this);
+    this._server.acceptLink(this._link);
+    _get(Object.getPrototypeOf(LocalClient.prototype), "constructor", this).call(this, clientID);
+    this.lifespan.onRelease(function () {
+      _this._link.lifespan.release();
+      _this._link = null;
     });
-  };
+  }
 
-  ClientAdapter.prototype._sendToClient = function (ev) {
-    if (__DEV__) {
-      ev.should.be.an.instanceOf(Server.Event);
+  _inherits(LocalClient, Client);
+
+  _prototypeProperties(LocalClient, null, {
+    sendToServer: {
+      value: function (ev) {
+        this._link.receiveFromClient(ev);
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    fetch: {
+      value: function (path) {
+        var _this2 = this;
+        // just ignore hash
+        return Promise["try"](function () {
+          // fail if there is not such published path
+          _this2._server["public"].should.have.property(path);
+          return _this2._server["public"][path];
+        });
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
     }
-    this.push(ev);
-  };
+  });
 
-  ClientAdapter.prototype._sendToLink = function (ev) {
+  return LocalClient;
+})(Client);
+
+var LocalLink = (function (Link) {
+  function LocalLink(client) {
+    var _this3 = this;
     if (__DEV__) {
-      ev.should.an.instanceOf(Client.Event);
+      client.should.be.an.instanceOf(LocalClient);
     }
-    this.link.push(ev);
-  };
+    _get(Object.getPrototypeOf(LocalLink.prototype), "constructor", this).call(this);
+    this._client = client;
+    this.lifespan.onRelease(function () {
+      client.lifespan.release();
+      _this3._client = null;
+    });
+  }
 
-  return ClientAdapter;
-})();
+  _inherits(LocalLink, Link);
 
-var ServerAdapter = (function () {
-  var _Server$Adapter = Server.Adapter;
-  var ServerAdapter = function ServerAdapter(state) {
-    if (__DEV__) {
-      state.should.be.an.Object;
-      state.should.have.property("buffer");
-      state.should.have.property("server");
-      (state.buffer === null).should.be.ok;
-      (state.server === null).should.be.ok;
+  _prototypeProperties(LocalLink, null, {
+    sendToClient: {
+      value: function (ev) {
+        this._client.receiveFromServer(ev);
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
     }
-    _get(Object.getPrototypeOf(ServerAdapter.prototype), "constructor", this).call(this);
-    _.bindAll(this);
-    state.buffer = this._buffer = {};
-    state.server = this;
-    this._events = new EventEmitter();
-  };
+  });
 
-  _inherits(ServerAdapter, _Server$Adapter);
+  return LocalLink;
+})(Link);
 
-  ServerAdapter.prototype.publish = function (path, consumer) {
-    if (__DEV__) {
-      path.should.be.a.String;
-      consumer.should.be.an.instanceOf(Remutable.Consumer);
+_LocalLink = LocalLink;
+
+var LocalServer = (function (Server) {
+  function LocalServer() {
+    var _this4 = this;
+    _get(Object.getPrototypeOf(LocalServer.prototype), "constructor", this).call(this);
+    this["public"] = {};
+    this.lifespan.onRelease(function () {
+      return _this4["public"] = null;
+    });
+  }
+
+  _inherits(LocalServer, Server);
+
+  _prototypeProperties(LocalServer, null, {
+    publish: {
+      value: function (path, remutableConsumer) {
+        if (__DEV__) {
+          path.should.be.a.String;
+          remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
+        }
+        this["public"][path] = remutableConsumer;
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
     }
-    this._buffer[path] = consumer;
-  };
+  });
 
-  ServerAdapter.prototype.connect = function (link) {
-    this._events.emit(CONNECTION, link);
-  };
+  return LocalServer;
+})(Server);
 
-  ServerAdapter.prototype.onConnection = function (accept, lifespan) {
-    if (__DEV__) {
-      accept.should.be.a.Function;
-      lifespan.should.have.property("then").which.is.a.Function;
-    }
-    this._events.addListener(CONNECTION, accept, lifespan);
-  };
-
-  return ServerAdapter;
-})();
-
-_ServerAdapter = ServerAdapter;
+_LocalServer = LocalServer;
 
 module.exports = {
-  Client: ClientAdapter,
-  Server: ServerAdapter };
+  Client: LocalClient,
+  Server: LocalServer };

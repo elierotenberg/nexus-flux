@@ -32,8 +32,22 @@ class Producer {
     .forEach((m) => this[m] = engine[m]);
   }
 
+  get(path) {
+    if(__DEV__) {
+      path.should.be.a.String;
+    }
+    return this.working.get(path);
+  }
+
+  unset(path) {
+    if(__DEV__) {
+      path.should.be.a.String;
+    }
+    return this.set(path, void 0);
+  }
+
   set() { // set is chainable
-    this._engine.remutableProducer.set.apply(this.engine.remutableProducer, arguments);
+    this._engine.remutableProducer.set.apply(this._engine.remutableProducer, arguments);
     return this;
   }
 }
@@ -65,7 +79,7 @@ class Consumer {
   }
 
   get value() {
-    return this.remutableConsumer.head;
+    return this._engine.remutableConsumer.head;
   }
 
   onUpdate(fn) {
@@ -144,6 +158,10 @@ class Engine extends EventEmitter {
   commit() {
     const patch = this.remutable.commit();
     this.emit(EVENTS.UPDATE, this.remutableConsumer, patch);
+  }
+
+  delete() {
+    this.emit(EVENTS.DELETE);
   }
 }
 

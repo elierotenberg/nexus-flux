@@ -20,10 +20,6 @@ var Client = _interopRequire(require("./Client"));
 
 var Server = _interopRequire(require("./Server"));
 
-var EventEmitter = _interopRequire(require("./EventEmitter"));
-
 var LocalAdapter = _interopRequire(require("./LocalAdapter"));
 
-var WebWorkerAdapter = _interopRequire(require("./WebWorkerAdapter"));
-
-module.exports = { Client: Client, Server: Server, EventEmitter: EventEmitter, LocalAdapter: LocalAdapter, WebWorkerAdapter: WebWorkerAdapter };
+module.exports = { Client: Client, Server: Server, LocalAdapter: LocalAdapter };

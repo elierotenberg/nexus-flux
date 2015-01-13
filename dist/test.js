@@ -1,5 +1,9 @@
 "use strict";
 
+var _interopRequire = function (obj) {
+  return obj && (obj["default"] || obj);
+};
+
 require("6to5/polyfill");
 var _ = require("lodash");
 var should = require("should");
@@ -12,83 +16,93 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
-var Client = require("../").Client;
-var Server = require("../").Server;
+var Lifespan = _interopRequire(require("lifespan"));
+
 var LocalAdapter = require("../").LocalAdapter;
+var Client = LocalAdapter.Client;
+var Server = LocalAdapter.Server;
 
 
-// shared state
-var state = { buffer: null, server: null };
+var server = new Server();
+var client = new Client(server);
+
+server.lifespan.onRelease(function () {
+  return console.log("server released");
+});
+client.lifespan.onRelease(function () {
+  return console.log("client released");
+});
 
 _.defer(function () {
   // server main
-  // this Promise represents the lifespan of the server; it resolves when the server dies.
-  var release = undefined;
-  var lifespan = new Promise(function (resolve) {
-    return release = resolve;
-  });
-  // insanciate the server, make it publish to the shared state
-  var server = new Server(new LocalAdapter.Server(state));
-  // create a new store at the '/clock' path
-  var clock = server.Store("/clock", lifespan);
-  // create a new store at the '/list' path
-  var list = server.Store("/list", lifespan);
-  // initialize the list store with { length: 0 } and immediatly commit
-  list.set("length", 0).commit();
-  var i = setInterval(function () {
-    // every 1 sec, perform some updates and commit them immediatly
-    clock.set("date", Date.now()).commit(); // commit per store
-    list.set("" + list.head.get("length"), _.random(0, 10)).set("length", list.head.get("length") + 1).commit(); // this commit will be relatively lightweight and its size is not related to the size of the list
-  }, 1000);
-  // whenever the server dies, clear this loop
-  lifespan.then(function () {
-    return clearInterval(i);
+  var clock = server.Store("/clock", server.lifespan);
+  clock.set("date", Date.now());
+  var todoList = server.Store("/todoList", server.lifespan);
+
+  server.lifespan.setInterval(function () {
+    return clock.set("date", Date.now()).commit();
+  }, 500); // update clock every 500ms
+
+  server.Action("/addItem", server.lifespan).onDispatch(function (_ref, clientHash) {
+    var name = _ref.name;
+    var description = _ref.description;
+    // register an Action handler
+    if (todoList.get(name) !== void 0) {
+      // ignore if we already know this task
+      return;
+    }
+    console.log("" + clientHash + " added task " + name + " (" + description + ").");
+    todoList.set(name, { description: description, clientHash: clientHash }).commit();
   });
 
-  server.Action("/ping", lifespan).onDispatch(function (payload) {
-    console.warn("pong", payload);
+  server.Action("/removeItem", server.lifespan).onDispatch(function (_ref2, clientHash) {
+    var name = _ref2.name;
+    if (todoList.working.get(name) === void 0) {
+      return;
+    }
+    if (todoList.working.get(name).clientHash !== clientHash) {
+      return;
+    }
+    console.log("removed item " + name);
+    todoList.unset(name, void 0).commit();
   });
 
-  setTimeout(release, 11000); // at some point in the future, shutdown the server
+  server.lifespan.setTimeout(server.lifespan.release, 10000);
 });
 
 _.defer(function () {
   // client main
-  // this Promise repesents the lifespan of the client
-  var release = undefined;
-  var lifespan = new Promise(function (resolve) {
-    return release = resolve;
-  });
-  // instanciate the client, make it fetch from the shared state
-  var client = new Client(new LocalAdapter.Client(state));
-  var ping = client.Action("/ping", lifespan);
-  // subscribe to the store at the '/clock' path
-  client.Store("/clock", lifespan).onUpdate(function (_ref) {
-    var head = _ref.head;
-    // whenever it updates, print the new value
-    console.warn("new date", head.get("date"));
+  var addItem = client.Action("/addItem", client.lifespan).dispatch;
+  var removeItem = client.Action("/removeItem", client.lifespan).dispatch;
+
+  client.Store("/clock", client.lifespan).onUpdate(function (_ref3) {
+    var head = _ref3.head;
+    console.log("clock tick", head.get("date"));
   }).onDelete(function () {
-    // wheneve its deleted, print it
-    console.warn("deleted date");
+    console.log("clock deleted");
   });
 
-  // subscribe to the store at the '/list' path
-  client.Store("/list", lifespan).onUpdate(function (_ref2, patch) {
-    var head = _ref2.head;
-    // whenever it update, print the new value and the serialized patch object
-    console.warn("new list", head, patch.toJSON());
+  var todoListLifespan = new Lifespan();
+  var todoList = client.Store("/todoList", todoListLifespan).onUpdate(function (_ref4, patch) {
+    var head = _ref4.head;
+    console.log("received todoList patch:", patch);
+    console.log("todoList head is now:", head.toJS());
   }).onDelete(function () {
-    // whenever its deleted, print it
-    console.warn("deleted list");
+    console.log("todoList deleted");
   });
 
-  var i = setInterval(function () {
-    ping.dispatch({ timestamp: Date.now() });
-  }, 1200);
-
-  lifespan.then(function () {
-    return clearInterval(i);
-  });
-
-  setTimeout(release, 10000); // at some point in the future, shutdown the client
+  addItem({ name: "Harder", description: "Code harder" });
+  addItem({ name: "Better", description: "Code better" });
+  client.lifespan.setTimeout(function () {
+    return addItem({ name: "Faster", description: "Code Faster" });
+  }, 1000).setTimeout(function () {
+    return removeItem({ name: "Harder" });
+  }, 2000).setTimeout(function () {
+    return addItem({ name: "Stronger", description: "Code stronger" });
+  }, 3000).setTimeout(function () {
+    todoList.value.forEach(function (_ref5, name) {
+      var description = _ref5.description;
+      removeItem({ name: name });
+    });
+  }, 4000).setTimeout(todoListLifespan.release, 5000).setTimeout(client.lifespan.release, 6000);
 });

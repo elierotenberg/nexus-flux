@@ -22,19 +22,24 @@ var _get = function get(object, property, receiver) {
   }
 };
 
-var _inherits = function (child, parent) {
-  if (typeof parent !== "function" && parent !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + typeof parent);
+var _inherits = function (subClass, superClass) {
+  if (typeof superClass !== "function" && superClass !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
   }
-  child.prototype = Object.create(parent && parent.prototype, {
+  subClass.prototype = Object.create(superClass && superClass.prototype, {
     constructor: {
-      value: child,
+      value: subClass,
       enumerable: false,
       writable: true,
       configurable: true
     }
   });
-  if (parent) child.__proto__ = parent;
+  if (superClass) subClass.__proto__ = superClass;
+};
+
+var _prototypeProperties = function (child, staticProps, instanceProps) {
+  if (staticProps) Object.defineProperties(child, staticProps);
+  if (instanceProps) Object.defineProperties(child.prototype, instanceProps);
 };
 
 require("6to5/polyfill");
@@ -49,156 +54,235 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
-var Event = function Event() {
-  if (__DEV__) {
-    this.should.have.property("_toJS").which.is.a.Function;
-    this.constructor.should.have.property("fromJS").which.is.a.Function;
-    this.constructor.should.have.property("t").which.is.a.Function;
+var Event = (function () {
+  function Event() {
+    if (__DEV__) {
+      this.should.have.property("_toJS").which.is.a.Function;
+      this.constructor.should.have.property("fromJS").which.is.a.Function;
+      this.constructor.should.have.property("t").which.is.a.Function;
+    }
+    Object.assign(this, {
+      _json: null,
+      _js: null });
   }
-  Object.assign(this, {
-    _json: null,
-    _js: null });
-};
 
-Event.prototype.toJS = function () {
-  if (this._js === null) {
-    this._js = {
-      t: this.constructor.t(),
-      j: this._toJS() };
-  }
-  return this._js;
-};
+  _prototypeProperties(Event, {
+    fromJSON: {
+      value: function (json) {
+        var _JSON$parse = JSON.parse(json);
 
-Event.prototype.toJSON = function () {
-  if (this._json === null) {
-    this._json = JSON.stringify(this.toJS());
-  }
-  return this._json;
-};
+        var _t = _JSON$parse.t;
+        var j = _JSON$parse.j;
+        return Event._[_t].fromJS(j);
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }
+  }, {
+    toJS: {
+      value: function () {
+        if (this._js === null) {
+          this._js = {
+            t: this.constructor.t(),
+            j: this._toJS() };
+        }
+        return this._js;
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    toJSON: {
+      value: function () {
+        if (this._json === null) {
+          this._json = JSON.stringify(this.toJS());
+        }
+        return this._json;
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }
+  });
 
-Event.fromJSON = function (json) {
-  var _JSON$parse = JSON.parse(json);
+  return Event;
+})();
 
-  var _t = _JSON$parse.t;
-  var j = _JSON$parse.j;
-  return Event._[_t].fromJS(j);
-};
-
-var Open = (function () {
-  var _Event = Event;
-  var Open = function Open(_ref) {
+var Open = (function (Event) {
+  function Open(_ref) {
     var clientID = _ref.clientID;
     if (__DEV__) {
       clientID.should.be.a.String;
     }
     _get(Object.getPrototypeOf(Open.prototype), "constructor", this).call(this);
     Object.assign(this, { clientID: clientID });
-  };
+  }
 
-  _inherits(Open, _Event);
+  _inherits(Open, Event);
 
-  Open.prototype._toJS = function () {
-    return { c: this.clientID };
-  };
-
-  Open.t = function () {
-    return "o";
-  };
-
-  Open.fromJS = function (_ref2) {
-    var c = _ref2.c;
-    return new Open(c);
-  };
+  _prototypeProperties(Open, {
+    t: {
+      value: function () {
+        return "o";
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    fromJS: {
+      value: function (_ref2) {
+        var c = _ref2.c;
+        return new Open(c);
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }
+  }, {
+    _toJS: {
+      value: function () {
+        return { c: this.clientID };
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }
+  });
 
   return Open;
-})();
+})(Event);
 
-var Close = (function () {
-  var _Event2 = Event;
-  var Close = function Close() {
+var Close = (function (Event) {
+  function Close() {
     if (Object.getPrototypeOf(Close) !== null) {
       Object.getPrototypeOf(Close).apply(this, arguments);
     }
-  };
+  }
 
-  _inherits(Close, _Event2);
+  _inherits(Close, Event);
 
-  Close.prototype._toJS = function () {
-    return {};
-  };
-
-  Close.t = function () {
-    return "c";
-  };
-
-  Close.fromJS = function () {
-    return new Close();
-  };
+  _prototypeProperties(Close, {
+    t: {
+      value: function () {
+        return "c";
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    fromJS: {
+      value: function () {
+        return new Close();
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }
+  }, {
+    _toJS: {
+      value: function () {
+        return {};
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }
+  });
 
   return Close;
-})();
+})(Event);
 
-var Subscribe = (function () {
-  var _Event3 = Event;
-  var Subscribe = function Subscribe(_ref3) {
+var Subscribe = (function (Event) {
+  function Subscribe(_ref3) {
     var path = _ref3.path;
     if (__DEV__) {
       path.should.be.a.String;
     }
     _get(Object.getPrototypeOf(Subscribe.prototype), "constructor", this).call(this);
     Object.assign(this, { path: path });
-  };
+  }
 
-  _inherits(Subscribe, _Event3);
+  _inherits(Subscribe, Event);
 
-  Subscribe.prototype._toJS = function () {
-    return { p: this.patch };
-  };
-
-  Subscribe.t = function () {
-    return "s";
-  };
-
-  Subscribe.fromJS = function (_ref4) {
-    var p = _ref4.p;
-    return new Subscribe(p);
-  };
+  _prototypeProperties(Subscribe, {
+    t: {
+      value: function () {
+        return "s";
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    fromJS: {
+      value: function (_ref4) {
+        var p = _ref4.p;
+        return new Subscribe(p);
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }
+  }, {
+    _toJS: {
+      value: function () {
+        return { p: this.patch };
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }
+  });
 
   return Subscribe;
-})();
+})(Event);
 
-var Unsubscribe = (function () {
-  var _Event4 = Event;
-  var Unsubscribe = function Unsubscribe(_ref5) {
+var Unsubscribe = (function (Event) {
+  function Unsubscribe(_ref5) {
     var path = _ref5.path;
     if (__DEV__) {
       path.should.be.a.String;
     }
     _get(Object.getPrototypeOf(Unsubscribe.prototype), "constructor", this).call(this);
     Object.assign(this, { path: path });
-  };
+  }
 
-  _inherits(Unsubscribe, _Event4);
+  _inherits(Unsubscribe, Event);
 
-  Unsubscribe.prototype._toJS = function () {
-    return { p: this.patch };
-  };
-
-  Unsubscribe.t = function () {
-    return "u";
-  };
-
-  Unsubscribe.fromJS = function (_ref6) {
-    var p = _ref6.p;
-    return new Unsubscribe(p);
-  };
+  _prototypeProperties(Unsubscribe, {
+    t: {
+      value: function () {
+        return "u";
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    fromJS: {
+      value: function (_ref6) {
+        var p = _ref6.p;
+        return new Unsubscribe(p);
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }
+  }, {
+    _toJS: {
+      value: function () {
+        return { p: this.patch };
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }
+  });
 
   return Unsubscribe;
-})();
+})(Event);
 
-var Dispatch = (function () {
-  var _Event5 = Event;
-  var Dispatch = function Dispatch(_ref7) {
+var Dispatch = (function (Event) {
+  function Dispatch(_ref7) {
     var path = _ref7.path;
     var params = _ref7.params;
     if (__DEV__) {
@@ -207,26 +291,42 @@ var Dispatch = (function () {
     }
     _get(Object.getPrototypeOf(Dispatch.prototype), "constructor", this).call(this);
     Object.assign(this, { path: path, params: params });
-  };
+  }
 
-  _inherits(Dispatch, _Event5);
+  _inherits(Dispatch, Event);
 
-  Dispatch.prototype._toJS = function () {
-    return { p: this.path, a: this.params };
-  };
-
-  Dispatch.t = function () {
-    return "d";
-  };
-
-  Dispatch.fromJS = function (_ref8) {
-    var p = _ref8.p;
-    var a = _ref8.a;
-    return new Dispatch(p, a);
-  };
+  _prototypeProperties(Dispatch, {
+    t: {
+      value: function () {
+        return "d";
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    fromJS: {
+      value: function (_ref8) {
+        var p = _ref8.p;
+        var a = _ref8.a;
+        return new Dispatch(p, a);
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }
+  }, {
+    _toJS: {
+      value: function () {
+        return { p: this.path, a: this.params };
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    }
+  });
 
   return Dispatch;
-})();
+})(Event);
 
 Event._ = {};
 Event.Open = Event._[Open.t()] = Open;

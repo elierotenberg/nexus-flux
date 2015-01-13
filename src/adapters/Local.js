@@ -1,21 +1,20 @@
 import Remutable from 'remutable';
-import Client from './Client';
-import Server from './Server';
+import { Client, Server } from '../';
 const { Link } = Server;
 
-let _LocalServer;
+let _LocalServer, _LocalLink;
 
 class LocalClient extends Client {
-  constructor(server) {
+  constructor(server, clientID) {
     if(__DEV__) {
       server.should.be.an.instanceOf(_LocalServer);
     }
-    super();
     this._server = server;
-    this._link = new LocalLink(this);
+    this._link = new _LocalLink(this);
     this._server.acceptLink(this._link);
+    super(clientID);
     this.lifespan.onRelease(() => {
-      this._link.lifespan.release());
+      this._link.lifespan.release();
       this._link = null;
     });
   }
@@ -49,6 +48,8 @@ class LocalLink extends Link {
     this._client.receiveFromServer(ev);
   }
 }
+
+_LocalLink = LocalLink;
 
 class LocalServer extends Server {
   constructor() {

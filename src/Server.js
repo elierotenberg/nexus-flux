@@ -1,10 +1,13 @@
 import Remutable from 'remutable';
 import Lifespan from 'lifespan';
+import sha256 from 'sha256';
 
 import Store from './Store';
 import Action from './Action';
 import Client from './Client.Event'; // we just need this reference for typechecks
 import { Event } from './Server.Event';
+
+let _Server;
 
 /**
  * @abstract
@@ -13,7 +16,7 @@ class Link {
   constructor() {
     if(__DEV__) {
       this.constructor.should.not.be.exactly(Link); // ensure abstracts
-      this.sendToClientLink.should.not.be.exactly(Link.prototype.sendToClientLink); // ensure virtual
+      this.sendToClient.should.not.be.exactly(Link.prototype.sendToClient); // ensure virtual
     }
     this.lifespan = new Lifespan();
     _.bindAll(this);
@@ -28,21 +31,21 @@ class Link {
    */
   sendToClient(ev) { // should forward the event to the associated client
     if(__DEV__) {
-      ev.should.be.an.instanceOf(Server.Event);
+      ev.should.be.an.instanceOf(_Server.Event);
     }
-    throw new Error(`Server.LinkLink should be extended and sendToClientLink should be implemented.`);
+    throw new TypeError('Virtual method invocation');
   }
 
   acceptFromServer(receiveFromClient) { // will be called by the server
     if(__DEV__) {
-      server.should.be.an.instanceOf(Server);
+      receiveFromClient.should.be.a.Function;
     }
     this.receiveFromClient = receiveFromClient;
   }
 
   receiveFromServer(ev) { // will be called by server
     if(__DEV__) {
-      ev.should.be.an.instanceOf(Server.Event);
+      ev.should.be.an.instanceOf(_Server.Event);
     }
     this.sendToClient(ev);
   }
@@ -82,6 +85,7 @@ class Server {
 
     const linkID = _.uniqueId();
     this._links[linkID] = {
+      link,
       subscriptions: {},
       clientID: null,
     };
@@ -115,7 +119,8 @@ class Server {
     }
     if(ev instanceof Client.Event.Dispatch) {
       if(this._links[linkID].clientID !== null && this._actions[ev.path] !== void 0) {
-        return this._actions[ev.path].producer.dispatch(ev.params, this._links[linkID].clientID);
+        // hash clientID. the action handlers shouldn't have access to it. (security issue)
+        return this._actions[ev.path].producer.dispatch(ev.params, sha256(this._links[linkID].clientID));
       }
       return;
     }
@@ -129,7 +134,7 @@ class Server {
       ev.should.be.an.instanceOf(Server.Event);
     }
     if(ev instanceof Server.Event.Update || ev instanceof Server.Event.Delete) {
-      _.each(this._links, ({ link, subscriptions }) => {
+      return _.each(this._links, ({ link, subscriptions }) => {
         if(subscriptions[ev.path] !== void 0) {
           link.receiveFromServer(ev);
         }
@@ -143,18 +148,19 @@ class Server {
   Store(path, lifespan) {
     if(__DEV__) {
       path.should.be.a.String;
+      lifespan.should.be.an.instanceOf(Lifespan);
     }
 
     const { engine } = this._stores[path] || (() => {
       const engine = new Store.Engine();
       const consumer = engine.createConsumer()
       .onUpdate((consumer, patch) => {
-        this._publish(path, consumer);
-        this.push(new Server.Event.Update({ path, patch }));
+        this.publish(path, consumer);
+        this.sendToLinks(new Server.Event.Update({ path, patch }));
       })
-      .onDelete(() => this.push(new Server.Event.Delete({ path })));
+      .onDelete(() => this.sendToLinks(new Server.Event.Delete({ path })));
       // immediatly publish the (empty) store
-      this._publish(path, engine.remutableConsumer);
+      this.publish(path, engine.remutableConsumer);
       return this._stores[path] = { engine, consumer };
     })();
     const producer = engine.createProducer();
@@ -172,6 +178,7 @@ class Server {
   Action(path, lifespan) {
     if(__DEV__) {
       path.should.be.a.String;
+      lifespan.should.be.an.instanceOf(Lifespan);
     }
 
     const { engine } = this._actions[path] || (() => {
@@ -194,6 +201,8 @@ class Server {
     return consumer;
   }
 }
+
+_Server = Server;
 
 Server.Event = Event;
 Server.Link = Link;

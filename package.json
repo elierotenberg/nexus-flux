@@ -28,14 +28,15 @@
     "jshint-stylish": "^1.0.0"
   },
   "dependencies": {
-    "6to5": "^2.9.4",
+    "6to5": "^2.11.4",
     "asap": "^2.0.0",
-    "bluebird": "^2.6.2",
-    "lifespan": "^2.0.0",
+    "bluebird": "^2.6.4",
+    "lifespan": "^2.4.0",
     "lodash": "^2.4.1",
     "nexus-events": "^1.0.0",
-    "remutable": "^0.18.2",
-    "should": "^4.4.4",
+    "remutable": "^0.18.3",
+    "sha256": "^0.1.1",
+    "should": "^4.5.2",
     "strict-events": "^1.2.0",
     "through2": "^0.6.3"
   }
