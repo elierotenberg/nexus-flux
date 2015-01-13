@@ -1,6 +1,7 @@
 import Remutable from 'remutable';
 import Client from './Client';
 import Server from './Server';
+const { Link } = Server;
 
 let _LocalServer;
 
@@ -23,15 +24,15 @@ class LocalClient extends Client {
     this._link.receiveFromClient(ev);
   }
 
-  fetch(path, hash = null) {
-    return Promise.try(() => {
+  fetch(path) { // just ignore hash
+    return Promise.try(() => { // fail if there is not such published path
       this._server.public.should.have.property(path);
       return this._server.public[path];
     });
   }
 }
 
-class LocalLink extends Server.Link {
+class LocalLink extends Link {
   constructor(client) {
     if(__DEV__) {
       client.should.be.an.instanceOf(LocalClient);
@@ -51,8 +52,6 @@ class LocalLink extends Server.Link {
 
 class LocalServer extends Server {
   constructor() {
-    if(__DEV__) {
-    }
     super();
     this.public = {};
     this.lifespan.onRelease(() => this.public = null);

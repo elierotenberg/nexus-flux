@@ -12,7 +12,8 @@ import { Event } from './Server.Event';
 class Link {
   constructor() {
     if(__DEV__) {
-      this.sendToClientLink.should.not.be.exactly(Link.prototype.sendToClientLink);
+      this.constructor.should.not.be.exactly(Link); // ensure abstracts
+      this.sendToClientLink.should.not.be.exactly(Link.prototype.sendToClientLink); // ensure virtual
     }
     this.lifespan = new Lifespan();
     _.bindAll(this);
@@ -53,7 +54,8 @@ class Link {
 class Server {
   constructor() {
     if(__DEV__) {
-      this.publish.should.not.be.exactly(Server.prototype.publish);
+      this.constructor.should.not.be.exactly(Server); // ensure abstracts
+      this.publish.should.not.be.exactly(Server.prototype.publish); // ensure virtual
     }
     this.lifespan = new Lifespan();
     _.bindAll(this);

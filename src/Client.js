@@ -16,8 +16,9 @@ class Client {
   constructor(clientID = _.uniqueId(`Client${_.random(1, INT_MAX - 1)}`)) {
     if(__DEV__) {
       clientID.should.be.a.String;
-      this.fetch.should.not.be.exactly(Client.prototype.fetch);
-      this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer);
+      this.constructor.should.not.be.exactly(Client); // ensure abstract
+      this.fetch.should.not.be.exactly(Client.prototype.fetch); // ensure virtual
+      this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer); // ensure virtual
     }
     this.lifespan = new Lifespan();
     _.bindAll(this);
