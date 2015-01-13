@@ -1,10 +1,5 @@
 "use strict";
 
-var _prototypeProperties = function (child, staticProps, instanceProps) {
-  if (staticProps) Object.defineProperties(child, staticProps);
-  if (instanceProps) Object.defineProperties(child.prototype, instanceProps);
-};
-
 var _get = function get(object, property, receiver) {
   var desc = Object.getOwnPropertyDescriptor(object, property);
 
@@ -27,19 +22,19 @@ var _get = function get(object, property, receiver) {
   }
 };
 
-var _inherits = function (subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
+var _inherits = function (child, parent) {
+  if (typeof parent !== "function" && parent !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof parent);
   }
-  subClass.prototype = Object.create(superClass && superClass.prototype, {
+  child.prototype = Object.create(parent && parent.prototype, {
     constructor: {
-      value: subClass,
+      value: child,
       enumerable: false,
       writable: true,
       configurable: true
     }
   });
-  if (superClass) subClass.__proto__ = superClass;
+  if (parent) child.__proto__ = parent;
 };
 
 var _interopRequire = function (obj) {
@@ -60,18 +55,17 @@ if (__DEV__) {
 }
 var Remutable = _interopRequire(require("remutable"));
 
-var Client = _interopRequire(require("./Client"));
-
-var Server = _interopRequire(require("./Server"));
-
+var Client = require("../").Client;
+var Server = require("../").Server;
 var Link = Server.Link;
 
 
 var _LocalServer = undefined,
     _LocalLink = undefined;
 
-var LocalClient = (function (Client) {
-  function LocalClient(server, clientID) {
+var LocalClient = (function () {
+  var _Client = Client;
+  var LocalClient = function LocalClient(server, clientID) {
     var _this = this;
     if (__DEV__) {
       server.should.be.an.instanceOf(_LocalServer);
@@ -84,40 +78,30 @@ var LocalClient = (function (Client) {
       _this._link.lifespan.release();
       _this._link = null;
     });
-  }
+  };
 
-  _inherits(LocalClient, Client);
+  _inherits(LocalClient, _Client);
 
-  _prototypeProperties(LocalClient, null, {
-    sendToServer: {
-      value: function (ev) {
-        this._link.receiveFromClient(ev);
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    },
-    fetch: {
-      value: function (path) {
-        var _this2 = this;
-        // just ignore hash
-        return Promise["try"](function () {
-          // fail if there is not such published path
-          _this2._server["public"].should.have.property(path);
-          return _this2._server["public"][path];
-        });
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    }
-  });
+  LocalClient.prototype.sendToServer = function (ev) {
+    this._link.receiveFromClient(ev);
+  };
+
+  LocalClient.prototype.fetch = function (path) {
+    var _this2 = this;
+    // just ignore hash
+    return Promise["try"](function () {
+      // fail if there is not such published path
+      _this2._server["public"].should.have.property(path);
+      return _this2._server["public"][path];
+    });
+  };
 
   return LocalClient;
-})(Client);
+})();
 
-var LocalLink = (function (Link) {
-  function LocalLink(client) {
+var LocalLink = (function () {
+  var _Link = Link;
+  var LocalLink = function LocalLink(client) {
     var _this3 = this;
     if (__DEV__) {
       client.should.be.an.instanceOf(LocalClient);
@@ -128,55 +112,42 @@ var LocalLink = (function (Link) {
       client.lifespan.release();
       _this3._client = null;
     });
-  }
+  };
 
-  _inherits(LocalLink, Link);
+  _inherits(LocalLink, _Link);
 
-  _prototypeProperties(LocalLink, null, {
-    sendToClient: {
-      value: function (ev) {
-        this._client.receiveFromServer(ev);
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    }
-  });
+  LocalLink.prototype.sendToClient = function (ev) {
+    this._client.receiveFromServer(ev);
+  };
 
   return LocalLink;
-})(Link);
+})();
 
 _LocalLink = LocalLink;
 
-var LocalServer = (function (Server) {
-  function LocalServer() {
+var LocalServer = (function () {
+  var _Server = Server;
+  var LocalServer = function LocalServer() {
     var _this4 = this;
     _get(Object.getPrototypeOf(LocalServer.prototype), "constructor", this).call(this);
     this["public"] = {};
     this.lifespan.onRelease(function () {
       return _this4["public"] = null;
     });
-  }
+  };
 
-  _inherits(LocalServer, Server);
+  _inherits(LocalServer, _Server);
 
-  _prototypeProperties(LocalServer, null, {
-    publish: {
-      value: function (path, remutableConsumer) {
-        if (__DEV__) {
-          path.should.be.a.String;
-          remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
-        }
-        this["public"][path] = remutableConsumer;
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
+  LocalServer.prototype.publish = function (path, remutableConsumer) {
+    if (__DEV__) {
+      path.should.be.a.String;
+      remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
     }
-  });
+    this["public"][path] = remutableConsumer;
+  };
 
   return LocalServer;
-})(Server);
+})();
 
 _LocalServer = LocalServer;
 

@@ -66,11 +66,9 @@ _.defer(() => { // client main
   .setTimeout(() => addItem({ name: 'Faster', description: 'Code Faster' }), 1000) // add a new item in 1000ms
   .setTimeout(() => removeItem({ name: 'Harder' }), 2000) // remove an item in 2000ms
   .setTimeout(() => addItem({ name: 'Stronger', description: 'Code stronger' }), 3000) // add an item in 3000ms
-  .setTimeout(() => {
-    todoList.value.forEach(({ description }, name) => { // remove every item in 4000
-      removeItem({ name });
-    })
-  }, 4000)
+  .setTimeout(() => todoList.value.forEach(({ description }, name) => { // remove every item in 4000
+    removeItem({ name });
+  }), 4000)
   .setTimeout(todoListLifespan.release, 5000) // release the subscriber in 5000ms
   .setTimeout(client.lifespan.release, 6000); // release the client in 6000ms
 });

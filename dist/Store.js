@@ -22,19 +22,19 @@ var _get = function get(object, property, receiver) {
   }
 };
 
-var _inherits = function (subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
+var _inherits = function (child, parent) {
+  if (typeof parent !== "function" && parent !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof parent);
   }
-  subClass.prototype = Object.create(superClass && superClass.prototype, {
+  child.prototype = Object.create(parent && parent.prototype, {
     constructor: {
-      value: subClass,
+      value: child,
       enumerable: false,
       writable: true,
       configurable: true
     }
   });
-  if (superClass) subClass.__proto__ = superClass;
+  if (parent) child.__proto__ = parent;
 };
 
 var _prototypeProperties = function (child, staticProps, instanceProps) {
@@ -72,143 +72,112 @@ var EVENTS = { UPDATE: "c", DELETE: "d" };
 
 var _Engine = undefined;
 
-var Producer = (function () {
-  function Producer(engine) {
-    var _this = this;
-    if (__DEV__) {
-      engine.should.be.an.instanceOf(_Engine);
-    }
-    _.bindAll(this);
-    Object.assign(this, {
-      _engine: engine,
-      lifespan: new Lifespan() });
-    // proxy getters to engine.remutableProducers
-    ["head", "working", "hash", "version"].forEach(function (p) {
-      return Object.defineProperty(_this, p, {
-        enumerable: true,
-        get: function () {
-          return engine.remutableProducer[p];
-        } });
-    });
-    // proxy methods to engine.remutableProducers
-    ["rollback", "match"].forEach(function (m) {
-      return _this[m] = engine.remutableProducer[m];
-    });
-    // proxy methods to engine
-    ["apply", "commit", "delete"].forEach(function (m) {
-      return _this[m] = engine[m];
-    });
+var Producer = function Producer(engine) {
+  var _this = this;
+  if (__DEV__) {
+    engine.should.be.an.instanceOf(_Engine);
   }
-
-  _prototypeProperties(Producer, null, {
-    get: {
-      value: function (path) {
-        if (__DEV__) {
-          path.should.be.a.String;
-        }
-        return this.working.get(path);
-      },
-      writable: true,
+  _.bindAll(this);
+  Object.assign(this, {
+    _engine: engine,
+    lifespan: new Lifespan() });
+  // proxy getters to engine.remutableProducers
+  ["head", "working", "hash", "version"].forEach(function (p) {
+    return Object.defineProperty(_this, p, {
       enumerable: true,
-      configurable: true
-    },
-    unset: {
-      value: function (path) {
-        if (__DEV__) {
-          path.should.be.a.String;
-        }
-        return this.set(path, void 0);
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    },
-    set: {
-      value: function () {
-        // set is chainable
-        this._engine.remutableProducer.set.apply(this._engine.remutableProducer, arguments);
-        return this;
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    }
-  });
-
-  return Producer;
-})();
-
-var Consumer = (function () {
-  function Consumer(engine) {
-    var _this2 = this;
-    if (__DEV__) {
-      engine.should.be.an.instanceOf(_Engine);
-    }
-    Object.assign(this, {
-      _engine: engine,
-      lifespan: new Lifespan() });
-    _.bindAll(this);
-
-    if (__DEV__) {
-      this._onUpdateHandlers = 0;
-      this._onDeleteHandlers = 0;
-      asap(function () {
-        // check that handlers are immediatly set
-        try {
-          _this2._onUpdateHandlers.should.be.above(0);
-          _this2._onDeleteHandlers.should.be.above(0);
-        } catch (err) {
-          console.warn("StoreConsumer: both onUpdate and onDelete handlers should be set immediatly.");
-        }
-      });
-    }
-  }
-
-  _prototypeProperties(Consumer, null, {
-    value: {
       get: function () {
-        return this._engine.remutableConsumer.head;
-      },
-      enumerable: true,
-      configurable: true
-    },
-    onUpdate: {
-      value: function (fn) {
-        if (__DEV__) {
-          fn.should.be.a.Function;
-        }
-        this._engine.addListener(EVENTS.UPDATE, fn, this.lifespan);
-        if (__DEV__) {
-          this._onUpdateHandlers = this._onUpdateHandlers + 1;
-        }
-        return this;
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    },
-    onDelete: {
-      value: function (fn) {
-        if (__DEV__) {
-          fn.should.be.a.Function;
-        }
-        this._engine.addListener(EVENTS.DELETE, fn, this.lifespan);
-        if (__DEV__) {
-          this._onDeleteHandlers = this._onDeleteHandlers + 1;
-        }
-        return this;
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    }
+        return engine.remutableProducer[p];
+      } });
   });
+  // proxy methods to engine.remutableProducers
+  ["rollback", "match"].forEach(function (m) {
+    return _this[m] = engine.remutableProducer[m];
+  });
+  // proxy methods to engine
+  ["apply", "commit", "delete"].forEach(function (m) {
+    return _this[m] = engine[m];
+  });
+};
 
-  return Consumer;
-})();
+Producer.prototype.get = function (path) {
+  if (__DEV__) {
+    path.should.be.a.String;
+  }
+  return this.working.get(path);
+};
 
-var Engine = (function (EventEmitter) {
-  function Engine(init) {
+Producer.prototype.unset = function (path) {
+  if (__DEV__) {
+    path.should.be.a.String;
+  }
+  return this.set(path, void 0);
+};
+
+Producer.prototype.set = function () {
+  // set is chainable
+  this._engine.remutableProducer.set.apply(this._engine.remutableProducer, arguments);
+  return this;
+};
+
+var Consumer = function Consumer(engine) {
+  var _this2 = this;
+  if (__DEV__) {
+    engine.should.be.an.instanceOf(_Engine);
+  }
+  Object.assign(this, {
+    _engine: engine,
+    lifespan: new Lifespan() });
+  _.bindAll(this);
+
+  if (__DEV__) {
+    this._onUpdateHandlers = 0;
+    this._onDeleteHandlers = 0;
+    asap(function () {
+      // check that handlers are immediatly set
+      try {
+        _this2._onUpdateHandlers.should.be.above(0);
+        _this2._onDeleteHandlers.should.be.above(0);
+      } catch (err) {
+        console.warn("StoreConsumer: both onUpdate and onDelete handlers should be set immediatly.");
+      }
+    });
+  }
+};
+
+Consumer.prototype.onUpdate = function (fn) {
+  if (__DEV__) {
+    fn.should.be.a.Function;
+  }
+  this._engine.addListener(EVENTS.UPDATE, fn, this.lifespan);
+  if (__DEV__) {
+    this._onUpdateHandlers = this._onUpdateHandlers + 1;
+  }
+  return this;
+};
+
+Consumer.prototype.onDelete = function (fn) {
+  if (__DEV__) {
+    fn.should.be.a.Function;
+  }
+  this._engine.addListener(EVENTS.DELETE, fn, this.lifespan);
+  if (__DEV__) {
+    this._onDeleteHandlers = this._onDeleteHandlers + 1;
+  }
+  return this;
+};
+
+_prototypeProperties(Consumer, null, {
+  value: {
+    get: function () {
+      return this._engine.remutableConsumer.head;
+    },
+    enumerable: true
+  }
+});
+
+var Engine = (function () {
+  var _EventEmitter = EventEmitter;
+  var Engine = function Engine(init) {
     var _this3 = this;
     init = init || {};
     if (__DEV__) {
@@ -234,72 +203,49 @@ var Engine = (function (EventEmitter) {
       _this3.remutableConsumer = null;
       _this3.remutableProducer = null;
     });
-  }
+  };
 
-  _inherits(Engine, EventEmitter);
+  _inherits(Engine, _EventEmitter);
 
-  _prototypeProperties(Engine, null, {
-    createProducer: {
-      value: function () {
-        var _this4 = this;
-        var producer = new Producer(this);
-        this.producers = this.producers + 1;
-        producer.lifespan.onRelease(function () {
-          return _this4.producers = _this4.producers - 1;
-        });
-        return producer;
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    },
-    createConsumer: {
-      value: function () {
-        var _this5 = this;
-        var consumer = new Consumer(this);
-        this.consumers = this.consumers + 1;
-        consumer.lifespan.onRelease(function () {
-          return _this5.consumers = _this5.consumers - 1;
-        });
-        return consumer;
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    },
-    apply: {
-      value: function (patch) {
-        if (__DEV__) {
-          patch.should.be.an.instanceOf(Patch);
-        }
-        this.remutable.apply(patch);
-        this.emit(EVENTS.UPDATE, this.remutableConsumer, patch);
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    },
-    commit: {
-      value: function () {
-        var patch = this.remutable.commit();
-        this.emit(EVENTS.UPDATE, this.remutableConsumer, patch);
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    },
-    "delete": {
-      value: function () {
-        this.emit(EVENTS.DELETE);
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
+  Engine.prototype.createProducer = function () {
+    var _this4 = this;
+    var producer = new Producer(this);
+    this.producers = this.producers + 1;
+    producer.lifespan.onRelease(function () {
+      return _this4.producers = _this4.producers - 1;
+    });
+    return producer;
+  };
+
+  Engine.prototype.createConsumer = function () {
+    var _this5 = this;
+    var consumer = new Consumer(this);
+    this.consumers = this.consumers + 1;
+    consumer.lifespan.onRelease(function () {
+      return _this5.consumers = _this5.consumers - 1;
+    });
+    return consumer;
+  };
+
+  Engine.prototype.apply = function (patch) {
+    if (__DEV__) {
+      patch.should.be.an.instanceOf(Patch);
     }
-  });
+    this.remutable.apply(patch);
+    this.emit(EVENTS.UPDATE, this.remutableConsumer, patch);
+  };
+
+  Engine.prototype.commit = function () {
+    var patch = this.remutable.commit();
+    this.emit(EVENTS.UPDATE, this.remutableConsumer, patch);
+  };
+
+  Engine.prototype["delete"] = function () {
+    this.emit(EVENTS.DELETE);
+  };
 
   return Engine;
-})(EventEmitter);
+})();
 
 _Engine = Engine;
 

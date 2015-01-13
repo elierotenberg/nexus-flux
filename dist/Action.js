@@ -22,24 +22,19 @@ var _get = function get(object, property, receiver) {
   }
 };
 
-var _inherits = function (subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
+var _inherits = function (child, parent) {
+  if (typeof parent !== "function" && parent !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof parent);
   }
-  subClass.prototype = Object.create(superClass && superClass.prototype, {
+  child.prototype = Object.create(parent && parent.prototype, {
     constructor: {
-      value: subClass,
+      value: child,
       enumerable: false,
       writable: true,
       configurable: true
     }
   });
-  if (superClass) subClass.__proto__ = superClass;
-};
-
-var _prototypeProperties = function (child, staticProps, instanceProps) {
-  if (staticProps) Object.defineProperties(child, staticProps);
-  if (instanceProps) Object.defineProperties(child.prototype, instanceProps);
+  if (parent) child.__proto__ = parent;
 };
 
 var _interopRequire = function (obj) {
@@ -66,85 +61,64 @@ var Lifespan = _interopRequire(require("lifespan"));
 var EVENTS = { DISPATCH: "d" };
 var _Engine = undefined;
 
-var Producer = (function () {
-  function Producer(engine) {
-    if (__DEV__) {
-      engine.should.be.an.instanceOf(_Engine);
-    }
-    _.bindAll(this);
-    Object.assign(this, {
-      _engine: engine,
-      lifespan: new Lifespan() });
+var Producer = function Producer(engine) {
+  if (__DEV__) {
+    engine.should.be.an.instanceOf(_Engine);
   }
+  _.bindAll(this);
+  Object.assign(this, {
+    _engine: engine,
+    lifespan: new Lifespan() });
+};
 
-  _prototypeProperties(Producer, null, {
-    dispatch: {
-      value: function (params, clientID) {
-        if (__DEV__) {
-          params.should.be.an.Object;
-          if (clientID !== void 0) {
-            clientID.should.be.a.String;
-          }
-        }
-        this._engine.dispatch(params, clientID);
-        return this;
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    }
-  });
-
-  return Producer;
-})();
-
-var Consumer = (function () {
-  function Consumer(engine) {
-    var _this = this;
-    if (__DEV__) {
-      engine.should.be.an.instanceOf(_Engine);
-    }
-    Object.assign(this, {
-      _engine: engine,
-      lifespan: new Lifespan() });
-    _.bindAll(this);
-
-    if (__DEV__) {
-      this._onDispatchHandlers = 0;
-      asap(function () {
-        // check that handlers are immediatly set
-        try {
-          _this._onDispatchHandlers.should.be.above(0);
-        } catch (err) {
-          console.warn("StoreConsumer: onDispatch handler should be set immediatly.");
-        }
-      });
+Producer.prototype.dispatch = function (params, clientID) {
+  if (__DEV__) {
+    params.should.be.an.Object;
+    if (clientID !== void 0) {
+      clientID.should.be.a.String;
     }
   }
+  this._engine.dispatch(params, clientID);
+  return this;
+};
 
-  _prototypeProperties(Consumer, null, {
-    onDispatch: {
-      value: function (fn) {
-        if (__DEV__) {
-          fn.should.be.a.Function;
-        }
-        this._engine.addListener(EVENTS.DISPATCH, fn, this.lifespan);
-        if (__DEV__) {
-          this._onDispatchHandlers = this._onDispatchHandlers + 1;
-        }
-        return this;
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    }
-  });
+var Consumer = function Consumer(engine) {
+  var _this = this;
+  if (__DEV__) {
+    engine.should.be.an.instanceOf(_Engine);
+  }
+  Object.assign(this, {
+    _engine: engine,
+    lifespan: new Lifespan() });
+  _.bindAll(this);
 
-  return Consumer;
-})();
+  if (__DEV__) {
+    this._onDispatchHandlers = 0;
+    asap(function () {
+      // check that handlers are immediatly set
+      try {
+        _this._onDispatchHandlers.should.be.above(0);
+      } catch (err) {
+        console.warn("StoreConsumer: onDispatch handler should be set immediatly.");
+      }
+    });
+  }
+};
 
-var Engine = (function (EventEmitter) {
-  function Engine() {
+Consumer.prototype.onDispatch = function (fn) {
+  if (__DEV__) {
+    fn.should.be.a.Function;
+  }
+  this._engine.addListener(EVENTS.DISPATCH, fn, this.lifespan);
+  if (__DEV__) {
+    this._onDispatchHandlers = this._onDispatchHandlers + 1;
+  }
+  return this;
+};
+
+var Engine = (function () {
+  var _EventEmitter = EventEmitter;
+  var Engine = function Engine() {
     var _this2 = this;
     _get(Object.getPrototypeOf(Engine.prototype), "constructor", this).call(this);
     this.lifespan = new Lifespan();
@@ -159,58 +133,43 @@ var Engine = (function (EventEmitter) {
       _this2.consumers = null;
       _this2.producers = null;
     });
-  }
+  };
 
-  _inherits(Engine, EventEmitter);
+  _inherits(Engine, _EventEmitter);
 
-  _prototypeProperties(Engine, null, {
-    createProducer: {
-      value: function () {
-        var _this3 = this;
-        var producer = new Producer(this);
-        this.producers = this.producers + 1;
-        producer.lifespan.onRelease(function () {
-          return _this3.producers = _this3.producers - 1;
-        });
-        return producer;
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    },
-    createConsumer: {
-      value: function () {
-        var _this4 = this;
-        var consumer = new Consumer(this);
-        this.consumers = this.consumers + 1;
-        consumer.lifespan.onRelease(function () {
-          return _this4.consumers = _this4.consumers - 1;
-        });
-        return consumer;
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
-    },
-    dispatch: {
-      value: function (params, clientHash) {
-        if (__DEV__) {
-          params.should.be.an.Object;
-          if (clientHash !== void 0) {
-            clientHash.should.be.a.String;
-          }
-        }
-        this.emit(EVENTS.DISPATCH, params, clientHash);
-        return this;
-      },
-      writable: true,
-      enumerable: true,
-      configurable: true
+  Engine.prototype.createProducer = function () {
+    var _this3 = this;
+    var producer = new Producer(this);
+    this.producers = this.producers + 1;
+    producer.lifespan.onRelease(function () {
+      return _this3.producers = _this3.producers - 1;
+    });
+    return producer;
+  };
+
+  Engine.prototype.createConsumer = function () {
+    var _this4 = this;
+    var consumer = new Consumer(this);
+    this.consumers = this.consumers + 1;
+    consumer.lifespan.onRelease(function () {
+      return _this4.consumers = _this4.consumers - 1;
+    });
+    return consumer;
+  };
+
+  Engine.prototype.dispatch = function (params, clientHash) {
+    if (__DEV__) {
+      params.should.be.an.Object;
+      if (clientHash !== void 0) {
+        clientHash.should.be.a.String;
+      }
     }
-  });
+    this.emit(EVENTS.DISPATCH, params, clientHash);
+    return this;
+  };
 
   return Engine;
-})(EventEmitter);
+})();
 
 _Engine = Engine;
 

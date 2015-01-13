@@ -1,180 +1,174 @@
-import Client from './Client';
-import Server from './Server';
+import { Client, Server } from '../';
+const { Link } = Server;
 import Remutable from 'remutable';
-import through from 'through2';
-
-// Client.Events:
-// Client -> Adapter -> (worker.postMessage -> worker.onmessage) -> Server.Link -> Server
-// Server.Events:
-// Server -> Server.Link -> (worker.postMessage -> window.onmessage) -> Adapter -> Client
 
 // constants for the communication 'protocol'/convention
 const FETCH = 'f';
-const PROVIDE = 'p';
+const PUBLISH = 'p';
 const EVENT = 'e';
 
-// just a disambiguation salt, avoiding
-// messing with other stuff by mistake.
-// this is by no means a password or a security feature.
-const salt = '__NqnLKaw8NrAt';
+// this is a just a disambiguation salt; this is by no mean a
+// cryptosecure password or anything else. its fine to leave it
+// plaintext here.
+// any malicious script running from the same domain will be able
+// to eavesdrop regardless.
+const DEFAULT_SALT = '__KqsrQBNHfkTYQ8mWadEDwfKM';
 
-const ClientAdapterDuplex = through.ctor({ objectMode: true, allowHalfOpen: false },
-  function receiveFromClient(ev, enc, done) { // Client -> Adapter
-    try {
-      if(__DEV__) {
-        ev.should.be.an.instanceOf(Client.Event);
-      }
-      this._worker.postMessage({ [salt]: [EVENT, ev.toJS()]}); // Client.Adapter (us) -> Server.Link (them)
-    }
-    catch(err) {
-      return done(err);
-    }
-    return done(null);
-  }
-);
-
-class ClientAdapter extends ClientAdapterDuplex {
-  constructor(worker) {
+/* jshint browser:true */
+class WorkerClient extends Client {
+  constructor(worker, salt = DEFAULT_SALT) {
     if(__DEV__) {
-      window.should.have.property('Worker').which.is.a.Function;
       worker.should.be.an.instanceOf(window.Worker);
+      salt.should.be.a.String;
     }
     super();
-    _.bindAll(this);
     this._worker = worker;
-    this._worker.onmessage = this._receiveFromWorker; // Server.Link (them) -> Client.Adapter (us)
+    this._salt = salt;
     this._fetching = {};
-  }
-
-  fetch(path, hash) { // ignore hash
-    return Promise.try(() => {
-      if(__DEV__) {
-        path.should.be.a.String;
-        (_.isNull(hash) || _.isString(hash)).should.be.true;
-      }
-
-      if(this._fetching[path] === void 0) {
-        let resolve;
-        const promise = new Promise((_resolve) => resolve = _resolve);
-        this._fetching[path] = { resolve, promise };
-        this._worker.postMessage({ [salt]: [FETCH, path] }); // salt the message to make is distinguishable
-      }
-      return this._fetching[path];
+    this._worker.addEventListener('message', this.receiveFromWorker);
+    this.lifespan.onRelease(() => {
+      _.each(this._fetching, ({ reject }) => reject(new Error('Client released')));
+      this._worker.removeEventListener('message', this.receiveFromWorker);
     });
   }
 
-  _receiveFromWorker({ data }) { // Server.Link (them) -> Client.Adapter (us)
-    if(_.isObject(data) && data[salt] !== void 0) { // don't catch messages from other stuff by mistake
-      const [type, payload] = data[salt];
-      if(type === PROVIDE) {
+  fetch(path, hash) {
+    if(this._fetching[path] === void 0) {
+      this._fetching[path] = {
+        promise: null,
+        resolve: null,
+        reject: null,
+      };
+      this._fetching[path].promise = new Promise((resolve, reject) => {
+        this._fetching[path].resolve = resolve;
+        this._fetching[path].reject = reject;
+      });
+      this._worker.postMessage({ [this._salt]: { t: FETCH, j: { hash, path } } });
+    }
+    return this._fetching[path].promise;
+  }
+
+  sendToServer(ev) {
+    if(__DEV__) {
+      ev.should.be.an.instanceOf(Client.Event);
+    }
+    this._worker.postMessage({ [this._salt]: { t: EVENT, js: ev.toJS() } });
+  }
+
+  receiveFromWorker(message) {
+    if(_.isObject(message) && message[this._salt] !== void 0) {
+      const { t, j } = message[this._salt];
+      if(t === PUBLISH) {
+        const { path } = j;
         if(__DEV__) {
-          payload.should.be.an.Object;
-          payload.should.have.property('path').which.is.a.String;
-          payload.should.have.property('js').which.is.an.Object;
+          path.should.be.a.String;
         }
-        if(this._fetching[payload.path] !== void 0) {
-          return this._fetching[payload.path].resolve(Remutable.fromJS(payload.js));
+        if(this._fetching[path] !== void 0) {
+          if(j === null) {
+            this._fetching[path].reject(new Error(`Couldn't fetch store`));
+          }
+          else {
+            this._fetching[path].resolve(Remutable.fromJS(j).createConsumer());
+          }
+          delete this._fetching[path];
         }
         return;
       }
-      if(type === EVENT) {
+      if(t === EVENT) {
+        const ev = Server.Event.fromJS(j);
         if(__DEV__) {
-          payload.should.be.an.Object;
+          ev.should.be.an.instanceOf(Server.Event);
         }
-        return this.push(Server.Event.fromJS(payload)); // Client.Adapter (us) -> Client
+        return this.receiveFromServer(ev);
       }
-      if(__DEV__) {
-        throw new TypeError(`Unknown message type: ${type}`);
-      }
+      throw new TypeError(`Unknown message type: ${message}`);
     }
   }
 }
+/* jshint browser:false */
+
 /* jshint worker:true */
-
-const LinkDuplex = through.ctor({ objectMode: true, allowHalfOpen: true },
-  function receiveFromServer(ev, enc, done) { // Server (them) -> Server.Link (us)
-    try {
-      if(__DEV__) {
-        ev.should.be.an.instanceOf(Server.Event);
-      }
-      this.push({ [salt]: [EVENT, ev.toJS()] });
-    }
-    catch(err) {
-      return done(err);
-    }
-    return done(null);
-  }
-);
-
-class Link extends LinkDuplex { // represents a client connection from the servers' point of view
-  constructor(buffer) {
+class WorkerLink extends Link {
+  constructor(self, pub, salt = DEFAULT_SALT) {
     if(__DEV__) {
-      buffer.should.be.an.Object;
+      self.should.be.an.Object;
+      self.postMessage.should.be.a.Function;
+      self.addEventListener.should.be.a.Function;
+      public.should.be.an.Object;
+      salt.should.be.a.String;
     }
     super();
-    this._buffer = buffer;
-    self.onmessage = this._receiveFromClient; // Client.Adapter (them) -> Server.Link (us)
+    this._self = self;
+    this._public = pub;
+    this._salt = salt;
+    this._self.addEventListener('message', this.receiveFromWorker);
+    this.lifespan.onRelease(() => {
+      this._self.removeEventListener('message', this.receiveFromWorker);
+      this._self = null;
+      this._public = null;
+    });
   }
 
-  _receiveFromClient({ data }) { // Client.Adapter (them) -> Server.Link (us)
-    if(_.isObject(data) && data[salt] !== void 0) {
-      const [type, payload] = data[salt];
-      if(type === FETCH) {
+  sendToClient(ev) {
+    if(__DEV__) {
+      ev.should.be.an.instanceOf(Server.Event);
+    }
+    this._self.postMessage({ [this._salt]: { t: EVENT, js: ev.toJS() } });
+  }
+
+  receiveFromWorker(message) {
+    if(_.isObject(message) && message[this._salt] !== void 0) {
+      const { t, j } = message[this._salt];
+      if(t === EVENT) {
+        const ev = Client.Event.fromJS(j);
         if(__DEV__) {
-          payload.should.be.a.String;
-        }
-        if(this._buffer[payload] !== void 0) {
-          return self.postMessage({ [salt]: [PROVIDE, { path: payload, js: this._buffer[payload] }] }); // Server.Link (us) -> Client.Adapter (them)
-        }
-        if(__DEV__) {
-          throw new Error(`No such store: ${payload}`);
+          ev.should.be.an.instanceOf(Client.Event);
+          return this.receiveFromClient(ev);
         }
         return;
       }
-      if(type === EVENT) {
-        if(__DEV__) {
-          payload.should.be.an.Object;
+      if(t === FETCH) {
+        const { path } = j;
+        if(this.public[path] === void 0) {
+          return this._self.postMessage({ [this._salt]: { t: PUBLISH, j: null } });
         }
-        return this.push(Client.Event.fromJS(payload)); // Server.Link (us) -> Server (them)
+        return this._self.postMessage({ [this._salt]: { t: PUBLISH, j: this.public[path].toJS() } });
       }
-      if(__DEV__) {
-        throw new TypeError(`Unknown message type: ${type}`);
-      }
+      throw new TypeError(`Unknown message type: ${message}`);
     }
   }
 }
 /* jshint worker:false */
 
 /* jshint worker:true */
-class ServerAdapter extends Server.Adapter {
-  constructor() {
+class WorkerServer extends Server {
+  constructor(salt = DEFAULT_SALT) {
     if(__DEV__) {
-      self.should.have.property('onmessage').which.is.a.Function;
+      salt.should.be.a.String;
     }
     super();
-    _.bindAll(this);
-    this._data = {};
+    this._salt = salt;
+    this._public = {};
+    this._link = new WorkerLink(self, this._public, this._salt);
+    this.acceptLink(this._link);
+    this.lifespan.onRelease(() => {
+      this._public = null;
+      this._link.release();
+      this._link = null;
+    });
   }
 
-  publish(path, consumer) {
+  publish(path, remutableConsumer) {
     if(__DEV__) {
       path.should.be.a.String;
-      consumer.should.be.an.instanceOf(Remutable.consumer);
+      remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
     }
-    this._data[path] = consumer;
-  }
-
-  onConnection(accept, lifespan) { // as soon as the server binds it, pass it a new instance
-    if(__DEV__) {
-      accept.should.be.a.Function;
-      lifespan.should.have.property('then').which.is.a.Function;
-    }
-    _.defer(() => accept(new Link(this._data)));
+    this._public[path] = remutableConsumer;
   }
 }
 /* jshint worker:false */
 
-module.exports = {
-  Client: ClientAdapter,
-  Server: ServerAdapter,
+export default {
+  Client: WorkerClient,
+  Server: WorkerServer,
 };

@@ -20,6 +20,4 @@ var Client = _interopRequire(require("./Client"));
 
 var Server = _interopRequire(require("./Server"));
 
-var LocalAdapter = _interopRequire(require("./LocalAdapter"));
-
-module.exports = { Client: Client, Server: Server, LocalAdapter: LocalAdapter };
+module.exports = { Client: Client, Server: Server };
