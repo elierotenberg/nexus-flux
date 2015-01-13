@@ -45,7 +45,7 @@ class Client {
       path.should.be.a.String;
       (hash === null || _.isString(hash)).should.be.true;
     }
-    throw new TypeError('Virtual method invocation.');
+    throw new TypeError('Virtual method invocation');
   }
 
   /**
@@ -55,7 +55,7 @@ class Client {
     if(__DEV__) {
       ev.should.be.an.instanceOf(Client.Event);
     }
-    throw new TypeError('Virtual method invocation.');
+    throw new TypeError('Virtual method invocation');
   }
 
   receiveFromServer(ev) {
@@ -124,12 +124,12 @@ class Client {
     consumer.lifespan.onRelease(() => {
       if(engine.consumers === 0) {
         this._stores[path].producer.lifespan.release();
-        this._stores[path].engine.lifespan.release();
+        engine.lifespan.release();
         this.sendToServer(new Client.Event.Unsubscribe({ path }));
         delete this._stores[path];
       }
     });
-    lifespan.onRelease(consumer.release);
+    lifespan.onRelease(consumer.lifespan.release);
     return consumer;
   }
 
@@ -150,11 +150,11 @@ class Client {
     producer.lifespan.onRelease(() => {
       if(engine.producers === 0) {
         this._actions[path].consumer.lifespan.release();
-        this._actions[path].engine.lifespan.release();
+        engine.lifespan.release();
         delete this._actions[path];
       }
     });
-    lifespan.onRelease(producer.release);
+    lifespan.onRelease(producer.lifespan.release);
     return producer;
   }
 

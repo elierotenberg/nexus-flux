@@ -16,57 +16,40 @@ class Link {
     }
     this.lifespan = new Lifespan();
     _.bindAll(this);
-    this._server = null;
-    this._linkID = null;
-    this._clientID = null;
+    this.receiveFromClient = null; // will be set by the server; should be called when received client events, to forward them to the server
     this.lifespan.onRelease(() => {
-      this._server = null;
-      this._linkID = null;
-      this._clientID = null;
+      this.receiveFromClient = null;
     });
   }
 
   /**
    * @virtual
    */
-  sendToClientLink(ev) { // should forward the event to an associated client link
+  sendToClient(ev) { // should forward the event to the associated client
     if(__DEV__) {
       ev.should.be.an.instanceOf(Server.Event);
     }
     throw new Error(`Server.LinkLink should be extended and sendToClientLink should be implemented.`);
   }
 
-  acceptFromServer(server, linkID) { // will be called by the server
+  acceptFromServer(receiveFromClient) { // will be called by the server
     if(__DEV__) {
       server.should.be.an.instanceOf(Server);
-      (this._server === null).should.be.an.instanceOf(Server);
     }
-    this._server = server;
-    this._linkID = linkID;
+    this.receiveFromClient = receiveFromClient;
   }
 
   receiveFromServer(ev) { // will be called by server
     if(__DEV__) {
       ev.should.be.an.instanceOf(Server.Event);
     }
-    this.sendToClientLink(ev);
-  }
-
-  sendToServer(ev) { // will be called by the implementation, in response to receiving an event from client link
-    if(__DEV__) {
-      ev.should.be.an.instanceOf(Client.Event);
-      (this._server !== null).should.be.true;
-    }
-    if(ev instanceof Client.Event.Open) {
-      this.clientID = ev.clientID;
-    }
-    if(ev instanceOf Client.Event.Close) {
-      this.clientID = null;
-    }
-    this._server.receiveFromLink(this, ev);
+    this.sendToClient(ev);
   }
 }
 
+/**
+ * @abstract
+ */
 class Server {
   constructor() {
     if(__DEV__) {
@@ -79,84 +62,79 @@ class Server {
     this._links = {};
   }
 
-  accept(link) {
+  /**
+   * @virtual
+   */
+  publish(path, remutableConsumer) {
+    if(__DEV__) {
+      path.should.be.a.String;
+      remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
+    }
+    throw new TypeError('Virtual method invocation');
+  }
+
+  acceptLink(link) {
     if(__DEV__) {
       link.should.be.an.instanceOf(Link);
     }
-    const subscriptions = {};
 
-
-    link.pipe(through.obj((ev, enc, done) => { // filter & pipe client events to the server
-      if(__DEV__) {
-        ev.should.be.an.instanceOf(Client.Event);
-      }
-
-      if(ev instanceof Client.Event.Open) {
-        clientID = ev.clientID;
-        return done(null, { clientID, ev });
-      }
-      if(ev instanceof Client.Event.Close) {
-        clientID = null;
-        return done(null, { clientID, ev });
-      }
-      if(ev instanceof Client.Event.Subscribe) {
-        subscriptions[ev.path] = true;
-        return done(null);
-      }
-      if(ev instanceof Client.Event.Unsubscribe) {
-        if(subscriptions[ev.path]) {
-          delete subscriptions[ev.path];
-        }
-        return done(null);
-      }
-      if(ev instanceof Client.Event.Dispatch) {
-        if(clientID !== null) {
-          return done(null, { clientID, ev });
-        }
-        return done(null);
-      }
-      return done(new TypeError(`Unknown Client.Event: ${ev}`));
-    }))
-    .pipe(this);
-
-    this.pipe(through.obj((ev, enc, done) => { // filter & pipe server events to the client
-      if(__DEV__) {
-        ev.should.be.an.instanceOf(Server.Event);
-      }
-
-      if(ev instanceof Server.Event.Update) {
-        if(subscriptions[ev.path]) {
-          return done(null, ev);
-        }
-        return done(null);
-      }
-      if(ev instanceof Server.Event.Delete) {
-        if(subscriptions[ev.path]) {
-          return done(null, ev);
-        }
-        return done(null);
-      }
-      return done(new TypeError(`Unknown Server.Event: ${ev}`));
-    }))
-    .pipe(link);
-
-    return link;
+    const linkID = _.uniqueId();
+    this._links[linkID] = {
+      subscriptions: {},
+      clientID: null,
+    };
+    link.acceptFromServer((ev) => this.receiveFromLink(linkID, ev));
+    link.lifespan.onRelease(() => {
+      delete this._links[linkID];
+    });
   }
 
-  _receive({ clientID, ev }) {
+  receiveFromLink(linkID, ev) {
     if(__DEV__) {
-      clientID.should.be.a.String;
+      linkID.should.be.a.String;
+      this._links.should.have.property(linkID);
       ev.should.be.an.instanceOf(Client.Event);
     }
+    if(ev instanceof Client.Event.Open) {
+      return this._links[linkID].clientID = ev.clientID;
+    }
+    if(ev instanceof Client.Event.Close) {
+      return this._links[linkID].clientID = null;
+    }
+    if(ev instanceof Client.Event.Subscribe) {
+      return this._links[linkID].subscriptions[ev.path] = null;
+    }
+    if(ev instanceof Client.Event.Unsubscribe) {
+      if(this._links[linkID].subscriptions[ev.path] !== void 0) {
+        delete this._links[linkID].subscriptions[ev.path];
+        return;
+      }
+      return;
+    }
     if(ev instanceof Client.Event.Dispatch) {
-      const { path, params } = ev;
-      if(__DEV__) {
-        path.should.be.a.String;
-        (params === null || _.isObject(params)).should.be.true;
+      if(this._links[linkID].clientID !== null && this._actions[ev.path] !== void 0) {
+        return this._actions[ev.path].producer.dispatch(ev.params, this._links[linkID].clientID);
       }
-      if(this._actions[path] !== void 0) {
-        return this._actions[path].producer.dispatch({ clientID, params });
-      }
+      return;
+    }
+    if(__DEV__) {
+      throw new TypeError(`Unknown Client.Event: ${ev}`);
+    }
+  }
+
+  sendToLinks(ev) {
+    if(__DEV__) {
+      ev.should.be.an.instanceOf(Server.Event);
+    }
+    if(ev instanceof Server.Event.Update || ev instanceof Server.Event.Delete) {
+      _.each(this._links, ({ link, subscriptions }) => {
+        if(subscriptions[ev.path] !== void 0) {
+          link.receiveFromServer(ev);
+        }
+      });
+    }
+    if(__DEV__) {
+      throw new TypeError(`Unknown Server.Event type: ${ev}`);
     }
   }
 
@@ -178,13 +156,14 @@ class Server {
       return this._stores[path] = { engine, consumer };
     })();
     const producer = engine.createProducer();
-    producer.lifespan.then(() => {
+    producer.lifespan.onRelease(() => {
       if(engine.producers === 0) {
-        engine.release();
+        this._stores[path].consumer.release();
+        engine.lifespan.release();
         delete this._stores[path];
       }
     });
-    lifespan.then(producer.release);
+    lifespan.onRelease(producer.lifespan.release);
     return producer;
   }
 
@@ -202,39 +181,15 @@ class Server {
       };
     })();
     const consumer = engine.createConsumer();
-    consumer.lifespan.then(() => {
+    consumer.lifespan.onRelease(() => {
       if(engine.consumers === 0) {
-        engine.release();
+        this._actions[path].producer.release();
+        engine.lifespan.release();
         delete this._actions[path];
       }
     });
-    lifespan.then(consumer.release);
+    lifespan.onRelease(consumer.lifespan.release);
     return consumer;
-  }
-}
-
-class Link {
-  constructor() {
-    if(__DEV__) {
-      this.should.have.property('publish').which.is.a.Function.and.is.not.exactly(Link.prototype.publish);
-      this.should.have.property('onConnection').which.is.a.Function.and.is.not.exactly(Link.prototype.onConnection);
-    }
-  }
-
-  publish(path, consumer) {
-    if(__DEV__) {
-      path.should.be.an.instanceOf(path);
-      consumer.should.be.an.instanceof(Remutable.Consumer);
-    }
-    throw new TypeError('Server.Link should implement publish(path: String, remutable: Remutable): void 0');
-  }
-
-  onConnection(accept, lifespan) {
-    if(__DEV__) {
-      accept.should.be.a.Function;
-      lifespan.should.have.property('then').which.is.a.Function;
-    }
-    throw new TypeError('Server.Link should implement onConnection(fn: Function(client: Duplex): void 0, lifespan: Promise): void 0');
   }
 }
 

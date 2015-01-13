@@ -1,123 +1,83 @@
 import Remutable from 'remutable';
-import through from 'through2';
-import { EventEmitter } from 'events';
-
 import Client from './Client';
 import Server from './Server';
 
-// Client -> ClientAdapter -> Link -> Server
-// Server -> Link -> ClientAdapter -> Client
+let _LocalServer;
 
-const CONNECTION = 'c'; // connection event name
-
-let _ServerAdapter;
-
-const ClientAdapterDuplex = through.ctor({ objectMode: true, allowHalfOpen: false },
-  function receiveFromClient(clientEvent, enc, done) { // receive from Client
-    try {
-      if(__DEV__) {
-        clientEvent.should.be.an.instanceOf(Client.Event);
-      }
-    }
-    catch(err) {
-      return done(err);
-    }
-    this._sendToLink(clientEvent);
-    return done(null);
-  }
-);
-
-class ClientAdapter extends ClientAdapterDuplex {
-  constructor(state) {
+class LocalClient extends Client {
+  constructor(shared) {
     if(__DEV__) {
-      state.should.be.an.Object;
-      state.should.have.property('buffer').which.is.an.Object;
-      state.should.have.property('server').which.is.an.instanceOf(_ServerAdapter);
+      shared.should.be.an.Object;
+      shared.should.have.property('server').which.is.an.instanceOf(LocalServer);
+      shared.should.have.property('buffer').which.is.an.Object;
     }
-    super(); // will be piped to and from the client
-    _.bindAll(this);
-    this._buffer = state.buffer;
-    this.link = through.obj((serverEvent, enc, done) => { // receive from server
-      try {
-        if(__DEV__) {
-          serverEvent.should.be.an.instanceOf(Server.Event);
-        }
-      }
-      catch(err) {
-        return done(err);
-      }
-      this._sendToClient(serverEvent);
-      return done(null);
-    }); // will be pipe to and from serverq
-    state.server.connect(this.link); // immediatly connect
-  }
-
-  fetch(path, hash = null) { // ignore hash
-    return Promise.try(() => {
-      if(__DEV__) {
-        path.should.be.a.String;
-        (_.isNull(hash) || _.isString(hash)).should.be.true;
-        this._buffer.should.have.property(path);
-      }
-      return this._buffer[path];
+    this._shared = shared;
+    super();
+    this._link = new LocalLink(this);
+    shared.server.acceptLink(this._link);
+    this.lifespan.onRelease(() => {
+      this._link.lifespan.release());
+      this._link = null;
     });
   }
 
-  _sendToClient(ev) {
-    if(__DEV__) {
-      ev.should.be.an.instanceOf(Server.Event);
-    }
-    this.push(ev);
+  sendToServer(ev) {
+    this._link.receiveFromClient(ev);
   }
 
-  _sendToLink(ev) {
-    if(__DEV__) {
-      ev.should.an.instanceOf(Client.Event);
-    }
-    this.link.push(ev);
+  fetch(path, hash = null) {
+    return Promise.try(() => {
+      this._shared.buffer.should.have.property(path);
+      return this._buffer[path];
+    });
   }
 }
 
-class ServerAdapter extends Server.Adapter {
-  constructor(state) {
+class LocalLink extends Server.Link {
+  constructor(client) {
     if(__DEV__) {
-      state.should.be.an.Object;
-      state.should.have.property('buffer');
-      state.should.have.property('server');
-      (state.buffer === null).should.be.ok;
-      (state.server === null).should.be.ok;
+      client.should.be.an.instanceOf(LocalClient);
     }
     super();
-    _.bindAll(this);
-    state.buffer = this._buffer = {};
-    state.server = this;
-    this._events = new EventEmitter();
+    this._client = client;
+    this.lifespan.onRelease(() => {
+      client.lifespan.release();
+      this._client = null;
+    });
   }
 
-  publish(path, consumer) {
-    if(__DEV__) {
-      path.should.be.a.String;
-      consumer.should.be.an.instanceOf(Remutable.Consumer);
-    }
-    this._buffer[path] = consumer;
-  }
-
-  connect(link) {
-    this._events.emit(CONNECTION, link);
-  }
-
-  onConnection(accept, lifespan) {
-    if(__DEV__) {
-      accept.should.be.a.Function;
-      lifespan.should.have.property('then').which.is.a.Function;
-    }
-    this._events.addListener(CONNECTION, accept, lifespan);
+  sendToClient(ev) {
+    this._client.receiveFromServer(ev);
   }
 }
 
-_ServerAdapter = ServerAdapter;
+class LocalServer extends Server {
+  constructor(shared) {
+    if(__DEV__) {
+      shared.should.be.an.Object;
+      shared.should.not.have.property('server');
+      shared.should.have.property('buffer').which.is.an.Object;
+    }
+    super();
+    this._shared = shared;
+    this._shared.server = this;
+    this.lifespan.onRelease(() => {
+      delete shared.server;
+    });
+  }
+
+  publish(path, remutableConsumer) {
+    if(__DEV__) {
+      path.should.be.a.String;
+      remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
+    }
+    this._shared.buffer[path] = remutableConsumer;
+  }
+}
+
+_LocalServer = LocalServer;
 
 export default {
-  Client: ClientAdapter,
-  Server: ServerAdapter,
+  Client: LocalClient,
+  Server: LocalServer,
 };

@@ -17,11 +17,14 @@ class Producer {
     });
   }
 
-  dispatch(params) {
+  dispatch(params, clientID) {
     if(__DEV__) {
       params.should.be.an.Object;
+      if(clientID !== void 0) {
+        clientID.should.be.a.String;
+      }
     }
-    this._engine.dispatch(params);
+    this._engine.dispatch(params, clientID);
     return this;
   }
 }
@@ -93,11 +96,14 @@ class Engine extends EventEmitter {
     return consumer;
   }
 
-  dispatch(params) {
+  dispatch(params, clientID) {
     if(__DEV__) {
       params.should.be.an.Object;
+      if(clientID !== void 0) {
+        clientID.should.be.a.String;
+      }
     }
-    this.emit(EVENTS.DISPATCH, params);
+    this.emit(EVENTS.DISPATCH, params, clientID);
     return this;
   }
 }
