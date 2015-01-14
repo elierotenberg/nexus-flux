@@ -121,8 +121,6 @@ removeItem.onDispatch((clientID, { name }) => {
 
 This implements the orthodox Flux for in-app data propagation.
 
-You can check the adapter from [its source](https://github.com/elierotenberg/nexus-flux/tree/master/src/LocalAdapter.js), which is trivial.
-
 ```js
 import { Server, Client } from 'nexus-flux/adapters/Local';
 const server = new Server();
@@ -148,9 +146,7 @@ const server = new Server(8080);
 
 #### In browser, off-thread local flux using [nexus-flux/adapters/Worker](https://github.com/elierotenberg/nexus-flux/tree/master/adapters/Worker.js)
 
-Defer expensive app-state data calculations off the main thread to avoid blocking UI.
-
-You can check the adapter from [its source](https://github.com/elierotenberg/nexus-flux/tree/master/src/WebWorkerAdapter.js). No black magic.
+Defer expensive app-state data calculations off the main thread to avoid blocking UI. No black magic, just clever message passing.
 
 ```js
 // Client side: runs in the main thread
