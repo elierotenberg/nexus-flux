@@ -117,7 +117,7 @@ removeItem.onDispatch((clientID, { name }) => {
 });
 ```
 
-#### Implementation example: local flux using [nexus-flux/adapters/Local](https://github.com/elierotenberg/nexus-flux/tree/master/adapters/Local.js)
+#### Traditional local flux using [nexus-flux/adapters/Local](https://github.com/elierotenberg/nexus-flux/tree/master/adapters/Local.js)
 
 This implements the orthodox Flux for in-app data propagation.
 
