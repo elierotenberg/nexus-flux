@@ -117,7 +117,7 @@ removeItem.onDispatch((clientID, { name }) => {
 });
 ```
 
-#### Implementation example: local flux using LocalAdapter (included in this package)
+#### Implementation example: local flux using [nexus-flux/adapters/Local](https://github.com/elierotenberg/nexus-flux/tree/master/adapters/Local.js)
 
 This implements the orthodox Flux for in-app data propagation.
 
@@ -146,7 +146,7 @@ import Server from 'nexus-flux-socket.io/server';
 const server = new Server(8080);
 ```
 
-#### In browser, off-thread local flux using nexus-flux/adapters/Worker (TBD)
+#### In browser, off-thread local flux using [nexus-flux/adapters/Worker](https://github.com/elierotenberg/nexus-flux/tree/master/adapters/Worker.js)
 
 Defer expensive app-state data calculations off the main thread to avoid blocking UI.
 
