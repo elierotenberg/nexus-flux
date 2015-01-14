@@ -130,20 +130,20 @@ const client = new Client(server);
 // use the server and client instance like above.
 ```
 
-#### Flux over the wire using nexus-flux-socket.io (TBD)
+#### Flux over the wire using [nexus-flux-socket.io](https://github.com/elierotenberg/nexus-flux-socket.io)
 
 Share global server-side app state across all connected clients.
 
 ```js
 // Client side: runs in the browser or in a node process
 import Client from 'nexus-flux-socket.io/client';
-const client = SocketIOClient('http://localhost:8080'));
+const client = Client('http://localhost:8080'));
 ```
 
 ```js
 // Server side: runs in a node process, which may or may not be the same process
 import Server from 'nexus-flux-socket.io/server';
-const server = new Server({ port: 8080, maxClients: 50000 });
+const server = new Server(8080);
 ```
 
 #### In browser, off-thread local flux using nexus-flux/adapters/Worker (TBD)
