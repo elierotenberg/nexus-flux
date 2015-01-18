@@ -68,6 +68,17 @@ and lets you focus on two things: your components logic and your global logic.
 
 Nexus Flux is built with React, Nexus Uplink and React Nexus in mind, but it is not tied to any of these projects and can be used a standalone library.
 
+
+#### Use cases
+
+Nexus Flux is designed with the following use cases in mind:
+
+- Implementing Flux over the Wire: dispatch actions from clients and propagate store updates to all connected clients in real time, efficiently.
+
+- Expose an isomorphic environment to an app: initialize a local flux on the server using the `request` object, or in the browser using the `window` object, and abstract it away.
+
+- Defer expensive calculations off the main thread: fetch raw collections from a remote cache, filter & retreat locally without blocking the main UI thread.
+
 #### Client usage example (in a React view)
 
 ```js
