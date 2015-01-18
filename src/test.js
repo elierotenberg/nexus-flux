@@ -1,5 +1,5 @@
 import Lifespan from 'lifespan';
-import { Client, Server } from '../Local';
+import { Client, Server } from './adapters/Local';
 
 const server = new Server();
 const client = new Client(server);

@@ -9,6 +9,11 @@ var _defineProperty = function (obj, key, value) {
   });
 };
 
+var _prototypeProperties = function (child, staticProps, instanceProps) {
+  if (staticProps) Object.defineProperties(child, staticProps);
+  if (instanceProps) Object.defineProperties(child.prototype, instanceProps);
+};
+
 var _get = function get(object, property, receiver) {
   var desc = Object.getOwnPropertyDescriptor(object, property);
 
@@ -31,19 +36,19 @@ var _get = function get(object, property, receiver) {
   }
 };
 
-var _inherits = function (child, parent) {
-  if (typeof parent !== "function" && parent !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + typeof parent);
+var _inherits = function (subClass, superClass) {
+  if (typeof superClass !== "function" && superClass !== null) {
+    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
   }
-  child.prototype = Object.create(parent && parent.prototype, {
+  subClass.prototype = Object.create(superClass && superClass.prototype, {
     constructor: {
-      value: child,
+      value: subClass,
       enumerable: false,
       writable: true,
       configurable: true
     }
   });
-  if (parent) child.__proto__ = parent;
+  if (superClass) subClass.__proto__ = superClass;
 };
 
 var _interopRequire = function (obj) {
@@ -80,9 +85,8 @@ var EVENT = "e";
 var DEFAULT_SALT = "__KqsrQBNHfkTYQ8mWadEDwfKM";
 
 /* jshint browser:true */
-var WorkerClient = (function () {
-  var _Client = Client;
-  var WorkerClient = function WorkerClient(worker) {
+var WorkerClient = (function (Client) {
+  function WorkerClient(worker) {
     var _this = this;
     var salt = arguments[1] === undefined ? DEFAULT_SALT : arguments[1];
     return (function () {
@@ -103,72 +107,86 @@ var WorkerClient = (function () {
         _this._worker.removeEventListener("message", _this.receiveFromWorker);
       });
     })();
-  };
+  }
 
-  _inherits(WorkerClient, _Client);
+  _inherits(WorkerClient, Client);
 
-  WorkerClient.prototype.fetch = function (path, hash) {
-    var _this2 = this;
-    if (this._fetching[path] === void 0) {
-      this._fetching[path] = {
-        promise: null,
-        resolve: null,
-        reject: null };
-      this._fetching[path].promise = new Promise(function (resolve, reject) {
-        _this2._fetching[path].resolve = resolve;
-        _this2._fetching[path].reject = reject;
-      });
-      this._worker.postMessage(_defineProperty({}, this._salt, { t: FETCH, j: { hash: hash, path: path } }));
-    }
-    return this._fetching[path].promise;
-  };
-
-  WorkerClient.prototype.sendToServer = function (ev) {
-    if (__DEV__) {
-      ev.should.be.an.instanceOf(Client.Event);
-    }
-    this._worker.postMessage(_defineProperty({}, this._salt, { t: EVENT, js: ev.toJS() }));
-  };
-
-  WorkerClient.prototype.receiveFromWorker = function (message) {
-    if (_.isObject(message) && message[this._salt] !== void 0) {
-      var t = message[this._salt].t;
-      var j = message[this._salt].j;
-      if (t === PUBLISH) {
-        var path = j.path;
-        if (__DEV__) {
-          path.should.be.a.String;
+  _prototypeProperties(WorkerClient, null, {
+    fetch: {
+      value: function fetch(path, hash) {
+        var _this2 = this;
+        if (this._fetching[path] === void 0) {
+          this._fetching[path] = {
+            promise: null,
+            resolve: null,
+            reject: null };
+          this._fetching[path].promise = new Promise(function (resolve, reject) {
+            _this2._fetching[path].resolve = resolve;
+            _this2._fetching[path].reject = reject;
+          });
+          this._worker.postMessage(_defineProperty({}, this._salt, { t: FETCH, j: { hash: hash, path: path } }));
         }
-        if (this._fetching[path] !== void 0) {
-          if (j === null) {
-            this._fetching[path].reject(new Error("Couldn't fetch store"));
-          } else {
-            this._fetching[path].resolve(Remutable.fromJS(j).createConsumer());
+        return this._fetching[path].promise;
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    sendToServer: {
+      value: function sendToServer(ev) {
+        if (__DEV__) {
+          ev.should.be.an.instanceOf(Client.Event);
+        }
+        this._worker.postMessage(_defineProperty({}, this._salt, { t: EVENT, js: ev.toJS() }));
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    receiveFromWorker: {
+      value: function receiveFromWorker(message) {
+        if (_.isObject(message) && message[this._salt] !== void 0) {
+          var t = message[this._salt].t;
+          var j = message[this._salt].j;
+          if (t === PUBLISH) {
+            var path = j.path;
+            if (__DEV__) {
+              path.should.be.a.String;
+            }
+            if (this._fetching[path] !== void 0) {
+              if (j === null) {
+                this._fetching[path].reject(new Error("Couldn't fetch store"));
+              } else {
+                this._fetching[path].resolve(Remutable.fromJS(j).createConsumer());
+              }
+              delete this._fetching[path];
+            }
+            return;
           }
-          delete this._fetching[path];
+          if (t === EVENT) {
+            var ev = Server.Event.fromJS(j);
+            if (__DEV__) {
+              ev.should.be.an.instanceOf(Server.Event);
+            }
+            return this.receiveFromServer(ev);
+          }
+          throw new TypeError("Unknown message type: " + message);
         }
-        return;
-      }
-      if (t === EVENT) {
-        var ev = Server.Event.fromJS(j);
-        if (__DEV__) {
-          ev.should.be.an.instanceOf(Server.Event);
-        }
-        return this.receiveFromServer(ev);
-      }
-      throw new TypeError("Unknown message type: " + message);
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
     }
-  };
+  });
 
   return WorkerClient;
-})();
+})(Client);
 
 /* jshint browser:false */
 
 /* jshint worker:true */
-var WorkerLink = (function () {
-  var _Link = Link;
-  var WorkerLink = function WorkerLink(self, pub) {
+var WorkerLink = (function (Link) {
+  function WorkerLink(self, pub) {
     var _this3 = this;
     var salt = arguments[2] === undefined ? DEFAULT_SALT : arguments[2];
     return (function () {
@@ -190,49 +208,59 @@ var WorkerLink = (function () {
         _this3._public = null;
       });
     })();
-  };
+  }
 
-  _inherits(WorkerLink, _Link);
+  _inherits(WorkerLink, Link);
 
-  WorkerLink.prototype.sendToClient = function (ev) {
-    if (__DEV__) {
-      ev.should.be.an.instanceOf(Server.Event);
-    }
-    this._self.postMessage(_defineProperty({}, this._salt, { t: EVENT, js: ev.toJS() }));
-  };
-
-  WorkerLink.prototype.receiveFromWorker = function (message) {
-    if (_.isObject(message) && message[this._salt] !== void 0) {
-      var t = message[this._salt].t;
-      var j = message[this._salt].j;
-      if (t === EVENT) {
-        var ev = Client.Event.fromJS(j);
+  _prototypeProperties(WorkerLink, null, {
+    sendToClient: {
+      value: function sendToClient(ev) {
         if (__DEV__) {
-          ev.should.be.an.instanceOf(Client.Event);
-          return this.receiveFromClient(ev);
+          ev.should.be.an.instanceOf(Server.Event);
         }
-        return;
-      }
-      if (t === FETCH) {
-        var path = j.path;
-        if (this["public"][path] === void 0) {
-          return this._self.postMessage(_defineProperty({}, this._salt, { t: PUBLISH, j: null }));
+        this._self.postMessage(_defineProperty({}, this._salt, { t: EVENT, js: ev.toJS() }));
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    receiveFromWorker: {
+      value: function receiveFromWorker(message) {
+        if (_.isObject(message) && message[this._salt] !== void 0) {
+          var t = message[this._salt].t;
+          var j = message[this._salt].j;
+          if (t === EVENT) {
+            var ev = Client.Event.fromJS(j);
+            if (__DEV__) {
+              ev.should.be.an.instanceOf(Client.Event);
+              return this.receiveFromClient(ev);
+            }
+            return;
+          }
+          if (t === FETCH) {
+            var path = j.path;
+            if (this["public"][path] === void 0) {
+              return this._self.postMessage(_defineProperty({}, this._salt, { t: PUBLISH, j: null }));
+            }
+            return this._self.postMessage(_defineProperty({}, this._salt, { t: PUBLISH, j: this["public"][path].toJS() }));
+          }
+          throw new TypeError("Unknown message type: " + message);
         }
-        return this._self.postMessage(_defineProperty({}, this._salt, { t: PUBLISH, j: this["public"][path].toJS() }));
-      }
-      throw new TypeError("Unknown message type: " + message);
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
     }
-  };
+  });
 
   return WorkerLink;
-})();
+})(Link);
 
 /* jshint worker:false */
 
 /* jshint worker:true */
-var WorkerServer = (function () {
-  var _Server = Server;
-  var WorkerServer = function WorkerServer() {
+var WorkerServer = (function (Server) {
+  function WorkerServer() {
     var _this4 = this;
     var salt = arguments[0] === undefined ? DEFAULT_SALT : arguments[0];
     return (function () {
@@ -250,20 +278,27 @@ var WorkerServer = (function () {
         _this4._link = null;
       });
     })();
-  };
+  }
 
-  _inherits(WorkerServer, _Server);
+  _inherits(WorkerServer, Server);
 
-  WorkerServer.prototype.publish = function (path, remutableConsumer) {
-    if (__DEV__) {
-      path.should.be.a.String;
-      remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
+  _prototypeProperties(WorkerServer, null, {
+    publish: {
+      value: function publish(path, remutableConsumer) {
+        if (__DEV__) {
+          path.should.be.a.String;
+          remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
+        }
+        this._public[path] = remutableConsumer;
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
     }
-    this._public[path] = remutableConsumer;
-  };
+  });
 
   return WorkerServer;
-})();
+})(Server);
 
 /* jshint worker:false */
 

@@ -18,8 +18,8 @@ if (__DEV__) {
 }
 var Lifespan = _interopRequire(require("lifespan"));
 
-var Client = require("../Local").Client;
-var Server = require("../Local").Server;
+var Client = require("./adapters/Local").Client;
+var Server = require("./adapters/Local").Server;
 
 
 var server = new Server();

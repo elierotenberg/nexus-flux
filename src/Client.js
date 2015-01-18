@@ -1,3 +1,4 @@
+import Immutable from 'immutable';
 import Remutable from 'remutable';
 const { Patch } = Remutable;
 import Lifespan from 'lifespan';
@@ -18,7 +19,7 @@ class Client {
       clientID.should.be.a.String;
       this.constructor.should.not.be.exactly(Client); // ensure abstract
       this.fetch.should.not.be.exactly(Client.prototype.fetch); // ensure virtual
-      this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer); // ensure vri
+      this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer); // ensure virtual
     }
     this.lifespan = new Lifespan();
     _.bindAll(this);
@@ -26,12 +27,14 @@ class Client {
     this._stores = {};
     this._refetching = {};
     this._actions = {};
+    this._injected = null;
     this._prefetched = null;
     this.lifespan.onRelease(() => {
       this._clientID = null;
       this._stores = null;
       this._refetching = null;
       this._actions = null;
+      this._injected = null;
       this._prefetched = null;
     });
 
@@ -59,6 +62,67 @@ class Client {
     throw new TypeError('Virtual method invocation');
   }
 
+  get isPrefetching() {
+    return this._prefetched !== null;
+  }
+
+  startPrefetching() {
+    if(__DEV__) {
+      this.isPrefetching.should.not.be.true;
+    }
+    this._prefetched = {};
+  }
+
+  stopPrefetching() {
+    if(__DEV__) {
+      this.isPrefetching.should.be.true;
+    }
+    const prefetched = this._prefetched;
+    return _.mapValues(prefetched, (head) => head.toJS());
+  }
+
+  prefetch(path) {
+    if(__DEV__) {
+      path.should.be.a.String;
+      this.isPrefetching.should.be.true;
+    }
+    if(this._prefetched[path] === void 0) {
+      this._prefetched[path] = this.fetch(path, null)
+      .then(({ head }) => head)
+      .catch(() => null);
+    }
+    return this._prefetched[path];
+  }
+
+  inject(path) {
+    if(__DEV__) {
+      path.should.be.a.String;
+    }
+    if(this._injected[path] !== void 0) {
+      return this._injected[path];
+    }
+    return null;
+  }
+
+  get isInjecting() {
+    return this._injected !== null;
+  }
+
+  startInjecting(injected) {
+    if(__DEV__) {
+      this.isInjecting.should.not.be.true;
+      injected.should.be.an.Object;
+    }
+    this._injected = _.mapValues(injected, (js) => Immutable.Map(js));
+  }
+
+  stopInjecting() {
+    if(__DEV__) {
+      this.isInjecting.should.be.true;
+    }
+    this._injected = null;
+  }
+
   receiveFromServer(ev) {
     if(__DEV__) {
       ev.should.be.an.instanceOf(Server.Event);
@@ -72,36 +136,6 @@ class Client {
     throw new TypeError(`Unknown event: ${ev}`);
   }
 
-  import(prefetched) {
-    if(__DEV__) {
-      prefetched.should.be.an.Object;
-      (this._prefetched === null).should.be.true;
-    }
-    this._prefetched = _.mapValues(prefetched, (js) => Remutable.fromJS(js));
-    return this;
-  }
-
-  export() {
-    if(__DEV__) {
-      (this._prefetched !== null).should.be.true;
-    }
-    return _.mapValues(this._stores, (val) => val.remutable.toJS());
-  }
-
-  // example usage: client.settle('/todoList', '/userList'), client.settle(paths), client.settle().
-  settle(...stores) { // wait for all the initialization Promise to be either fullfilled or rejected; paths can be either null/void 0 (all stores), a single string (1 store), or an array of stores
-    if(stores === void 0) {
-      stores = Object.keys(this._stores);
-    }
-    if(__DEV__) {
-      stores.should.be.an.Array;
-    }
-    if(_.isArray(stores[0])) {
-      stores = stores[0];
-    }
-    return Promise.settle(_.map(stores, (path) => this._stores[path].initialized));
-  }
-
   Store(path, lifespan) { // returns a Store consumer
     if(__DEV__) {
       path.should.be.a.String;
@@ -109,16 +143,14 @@ class Client {
     }
     const { engine } = this._stores[path] || (() => { // if we don't know this store yet, then subscribe
       this.sendToServer(new Client.Event.Subscribe({ path }));
-      const prefetched = this._prefetched !== null && this._prefetched[path] !== void 0 ? this._prefetched[path] : null;
-      const engine = new Store.Engine(prefetched);
-      const store = this._stores[path] = {
+      const engine = new Store.Engine(this.isInjecting ? this.inject(path) : null);
+      this._stores[path] = {
         engine,
         producer: engine.createProducer(),
         patches: {},         // initially we have no pending patches and we are not refetching
         refetching: false,
-        initialized: null,
       };
-      store.initialized = this._refetch(path, prefetched ? prefetched.hash : null);
+      this._refetch(path, null);
       return this._stores[path];
     })();
     const consumer = engine.createConsumer();
