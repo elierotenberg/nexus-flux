@@ -131,7 +131,8 @@ var Client = (function () {
           this.isPrefetching.should.be["true"];
         }
         var prefetched = this._prefetched;
-        return _.mapValues(prefetched, function (head) {
+        return _.mapValues(prefetched, function (_ref) {
+          var head = _ref.head;
           return head.toJS();
         });
       },
@@ -141,19 +142,26 @@ var Client = (function () {
     },
     prefetch: {
       value: function prefetch(path) {
+        var _this2 = this;
         if (__DEV__) {
           path.should.be.a.String;
           this.isPrefetching.should.be["true"];
         }
         if (this._prefetched[path] === void 0) {
-          this._prefetched[path] = this.fetch(path, null).then(function (_ref) {
-            var head = _ref.head;
-            return head;
-          })["catch"](function () {
-            return null;
-          });
+          (function () {
+            var prefetched = {
+              promise: null,
+              head: null };
+            prefetched.promise = _this2.fetch(path, null).then(function (_ref2) {
+              var head = _ref2.head;
+              return prefetched.head = head;
+            })["catch"](function () {
+              return prefetched.head = null;
+            });
+            _this2._prefetched[path] = prefetched;
+          })();
         }
-        return this._prefetched[path];
+        return this._prefetched[path].promise;
       },
       writable: true,
       enumerable: true,
@@ -234,32 +242,32 @@ var Client = (function () {
 
         return _StoreWrapper;
       })(function (path, lifespan) {
-        var _this2 = this;
+        var _this3 = this;
         // returns a Store consumer
         if (__DEV__) {
           path.should.be.a.String;
           lifespan.should.be.an.instanceOf(Lifespan);
         }
-        var _ref2 = this._stores[path] || (function () {
+        var _ref3 = this._stores[path] || (function () {
           // if we don't know this store yet, then subscribe
-          _this2.sendToServer(new Client.Event.Subscribe({ path: path }));
-          var engine = new Store.Engine(_this2.isInjecting ? _this2.inject(path) : null);
-          _this2._stores[path] = {
+          _this3.sendToServer(new Client.Event.Subscribe({ path: path }));
+          var engine = new Store.Engine(_this3.isInjecting ? _this3.inject(path) : null);
+          _this3._stores[path] = {
             engine: engine,
             producer: engine.createProducer(),
             patches: {}, // initially we have no pending patches and we are not refetching
             refetching: false };
-          _this2._refetch(path, null);
-          return _this2._stores[path];
+          _this3._refetch(path, null);
+          return _this3._stores[path];
         })();
-        var engine = _ref2.engine;
+        var engine = _ref3.engine;
         var consumer = engine.createConsumer();
         consumer.lifespan.onRelease(function () {
           if (engine.consumers === 0) {
-            _this2._stores[path].producer.lifespan.release();
+            _this3._stores[path].producer.lifespan.release();
             engine.lifespan.release();
-            _this2.sendToServer(new Client.Event.Unsubscribe({ path: path }));
-            delete _this2._stores[path];
+            _this3.sendToServer(new Client.Event.Unsubscribe({ path: path }));
+            delete _this3._stores[path];
           }
         });
         lifespan.onRelease(consumer.lifespan.release);
@@ -281,28 +289,28 @@ var Client = (function () {
 
         return _ActionWrapper;
       })(function (path, lifespan) {
-        var _this3 = this;
+        var _this4 = this;
         // returns an Action producer
         if (__DEV__) {
           path.should.be.a.String;
           lifespan.should.be.an.instanceOf(Lifespan);
         }
-        var _ref3 = this._actions[path] || (function () {
+        var _ref4 = this._actions[path] || (function () {
           // if we don't know this action yet, start observing it
           var engine = new Action.Engine();
-          return _this3._actions[path] = {
+          return _this4._actions[path] = {
             engine: engine,
             consumer: engine.createConsumer().onDispatch(function (params) {
-              return _this3.sendToServer(new Client.Event.Dispatch({ path: path, params: params }));
+              return _this4.sendToServer(new Client.Event.Dispatch({ path: path, params: params }));
             }) };
         })();
-        var engine = _ref3.engine;
+        var engine = _ref4.engine;
         var producer = engine.createProducer();
         producer.lifespan.onRelease(function () {
           if (engine.producers === 0) {
-            _this3._actions[path].consumer.lifespan.release();
+            _this4._actions[path].consumer.lifespan.release();
             engine.lifespan.release();
-            delete _this3._actions[path];
+            delete _this4._actions[path];
           }
         });
         lifespan.onRelease(producer.lifespan.release);
@@ -359,7 +367,7 @@ var Client = (function () {
     },
     _refetch: {
       value: function Refetch(path, target) {
-        var _this4 = this;
+        var _this5 = this;
         if (__DEV__) {
           path.should.be.a.String;
           (target === null || _.isString(target)).should.be["true"];
@@ -368,7 +376,7 @@ var Client = (function () {
         this._stores[path].refetching = true;
         // we use the fetch method from the adapter
         return this.fetch(path, target).then(function (remutable) {
-          return _this4._upgrade(path, remutable);
+          return _this5._upgrade(path, remutable);
         });
       },
       writable: true,
@@ -400,8 +408,8 @@ var Client = (function () {
         }
         var version = squash.to.v;
         // clean old patches
-        _.each(patches, function (_ref4, source) {
-          var to = _ref4.to;
+        _.each(patches, function (_ref5, source) {
+          var to = _ref5.to;
           if (to.v <= version) {
             delete patches[source];
           }

@@ -78,7 +78,7 @@ class Client {
       this.isPrefetching.should.be.true;
     }
     const prefetched = this._prefetched;
-    return _.mapValues(prefetched, (head) => head.toJS());
+    return _.mapValues(prefetched, ({ head }) => head.toJS());
   }
 
   prefetch(path) {
@@ -87,11 +87,16 @@ class Client {
       this.isPrefetching.should.be.true;
     }
     if(this._prefetched[path] === void 0) {
-      this._prefetched[path] = this.fetch(path, null)
-      .then(({ head }) => head)
-      .catch(() => null);
+      let prefetched = {
+        promise: null,
+        head: null,
+      };
+      prefetched.promise = this.fetch(path, null)
+      .then(({ head }) => prefetched.head = head)
+      .catch(() => prefetched.head = null);
+      this._prefetched[path] = prefetched;
     }
-    return this._prefetched[path];
+    return this._prefetched[path].promise;
   }
 
   inject(path) {
