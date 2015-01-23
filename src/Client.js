@@ -66,6 +66,16 @@ class Client {
     return this._prefetched !== null;
   }
 
+  getPrefetched(path) {
+    if(__DEV__) {
+      path.should.be.a.String;
+      this.isPrefetching.should.be.true;
+      this._prefetched.should.have.property(path);
+      this._prefetched[path].promise.isPending().should.be.false;
+    }
+    return this._prefetched[path].head;
+  }
+
   startPrefetching() {
     if(__DEV__) {
       this.isPrefetching.should.not.be.true;
@@ -99,7 +109,11 @@ class Client {
     return this._prefetched[path].promise;
   }
 
-  inject(path) {
+  get isInjecting() {
+    return this._injected !== null;
+  }
+
+  getInjected(path) {
     if(__DEV__) {
       path.should.be.a.String;
     }
@@ -107,10 +121,6 @@ class Client {
       return this._injected[path];
     }
     return null;
-  }
-
-  get isInjecting() {
-    return this._injected !== null;
   }
 
   startInjecting(injected) {

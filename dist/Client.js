@@ -114,6 +114,20 @@ var Client = (function () {
       enumerable: true,
       configurable: true
     },
+    getPrefetched: {
+      value: function getPrefetched(path) {
+        if (__DEV__) {
+          path.should.be.a.String;
+          this.isPrefetching.should.be["true"];
+          this._prefetched.should.have.property(path);
+          this._prefetched[path].promise.isPending().should.be["false"];
+        }
+        return this._prefetched[path].head;
+      },
+      writable: true,
+      enumerable: true,
+      configurable: true
+    },
     startPrefetching: {
       value: function startPrefetching() {
         if (__DEV__) {
@@ -167,8 +181,15 @@ var Client = (function () {
       enumerable: true,
       configurable: true
     },
-    inject: {
-      value: function inject(path) {
+    isInjecting: {
+      get: function () {
+        return this._injected !== null;
+      },
+      enumerable: true,
+      configurable: true
+    },
+    getInjected: {
+      value: function getInjected(path) {
         if (__DEV__) {
           path.should.be.a.String;
         }
@@ -178,13 +199,6 @@ var Client = (function () {
         return null;
       },
       writable: true,
-      enumerable: true,
-      configurable: true
-    },
-    isInjecting: {
-      get: function () {
-        return this._injected !== null;
-      },
       enumerable: true,
       configurable: true
     },
