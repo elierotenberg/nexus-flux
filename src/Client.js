@@ -88,7 +88,7 @@ class Client {
       this.isPrefetching.should.be.true;
     }
     const prefetched = this._prefetched;
-    return _.mapValues(prefetched, ({ head }) => head.toJS());
+    return _.mapValues(prefetched, ({ head }) => (head ? head.toJS() : void 0));
   }
 
   prefetch(path) {

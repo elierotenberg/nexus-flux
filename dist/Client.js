@@ -147,7 +147,7 @@ var Client = (function () {
         var prefetched = this._prefetched;
         return _.mapValues(prefetched, function (_ref) {
           var head = _ref.head;
-          return head.toJS();
+          return head ? head.toJS() : void 0;
         });
       },
       writable: true,
