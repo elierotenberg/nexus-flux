@@ -16,8 +16,10 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
+var Remutable = _interopRequire(require("remutable"));
+
 var Client = _interopRequire(require("./Client"));
 
 var Server = _interopRequire(require("./Server"));
 
-module.exports = { Client: Client, Server: Server };
+module.exports = { Client: Client, Server: Server, Remutable: Remutable };
