@@ -1,6 +1,7 @@
 import Remutable from 'remutable';
 import Lifespan from 'lifespan';
 import sha256 from 'sha256';
+import { EventEmitter } from 'nexus-events';
 
 import Store from './Store';
 import Action from './Action';
@@ -54,12 +55,13 @@ class Link {
 /**
  * @abstract
  */
-class Server {
+class Server extends EventEmitter {
   constructor() {
     if(__DEV__) {
       this.constructor.should.not.be.exactly(Server); // ensure abstracts
       this.publish.should.not.be.exactly(Server.prototype.publish); // ensure virtual
     }
+    super();
     this.lifespan = new Lifespan();
     _.bindAll(this);
     this._stores = {};
@@ -91,8 +93,10 @@ class Server {
     };
     link.acceptFromServer((ev) => this.receiveFromLink(linkID, ev));
     link.lifespan.onRelease(() => {
+      this.emit('link:remove', { linkID });
       delete this._links[linkID];
     });
+    this.emit('link:add', { linkID });
   }
 
   receiveFromLink(linkID, ev) {
