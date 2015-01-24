@@ -62,7 +62,7 @@ class Update extends Event {
       p.should.be.a.String;
       u.should.be.an.Object;
     }
-    return new Update(p, Patch.fromJS(u));
+    return new Update({ path: p, patch: Patch.fromJS(u) });
   }
 }
 
@@ -87,7 +87,7 @@ class Delete extends Event {
     if(__DEV__) {
       p.should.be.a.String;
     }
-    return new Delete(p);
+    return new Delete({ path: p });
   }
 }
 
