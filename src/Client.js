@@ -245,7 +245,16 @@ class Client {
     }
     this._stores[path].refetching = true;
     // we use the fetch method from the adapter
-    return this.fetch(path, target).then((remutable) => this._upgrade(path, remutable));
+    return this.fetch(path, target).then((remutable) => {
+      if(this._stores[path] === void 0) { // not interested anymore
+        return;
+      }
+      if(__DEV__) {
+        this._stores[path].refetching.should.be.true;
+      }
+      this._stores[path].refetching = false;
+      this._upgrade(path, remutable);
+    });
   }
 
   _upgrade(path, next) {

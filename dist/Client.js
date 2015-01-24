@@ -390,7 +390,15 @@ var Client = (function () {
         this._stores[path].refetching = true;
         // we use the fetch method from the adapter
         return this.fetch(path, target).then(function (remutable) {
-          return _this5._upgrade(path, remutable);
+          if (_this5._stores[path] === void 0) {
+            // not interested anymore
+            return;
+          }
+          if (__DEV__) {
+            _this5._stores[path].refetching.should.be["true"];
+          }
+          _this5._stores[path].refetching = false;
+          _this5._upgrade(path, remutable);
         });
       },
       writable: true,
