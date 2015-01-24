@@ -106,17 +106,10 @@ class Consumer {
 }
 
 class Engine extends EventEmitter {
-  constructor(init) {
-    init = init || {};
-    if(__DEV__) {
-      init.should.be.an.Object;
-      _.each(init, (val, key) => {
-        key.should.be.a.String;
-      });
-    }
+  constructor(data = {}) {
     super();
     this.lifespan = new Lifespan();
-    this.remutable = new Remutable(init);
+    this.remutable = new Remutable(data);
     this.remutableProducer = this.remutable.createProducer();
     this.remutableConsumer = this.remutable.createConsumer();
     _.bindAll(this);

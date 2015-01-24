@@ -265,7 +265,7 @@ var Client = (function () {
         var _ref3 = this._stores[path] || (function () {
           // if we don't know this store yet, then subscribe
           _this3.sendToServer(new Client.Event.Subscribe({ path: path }));
-          var engine = new Store.Engine(_this3.isInjecting ? _this3.getInjected(path) : null);
+          var engine = new Store.Engine(_this3.isInjecting ? _this3.getInjected(path) : void 0);
           _this3._stores[path] = {
             engine: engine,
             producer: engine.createProducer(),

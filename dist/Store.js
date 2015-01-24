@@ -208,18 +208,12 @@ var Consumer = (function () {
 })();
 
 var Engine = (function (EventEmitter) {
-  function Engine(init) {
+  function Engine() {
     var _this3 = this;
-    init = init || {};
-    if (__DEV__) {
-      init.should.be.an.Object;
-      _.each(init, function (val, key) {
-        key.should.be.a.String;
-      });
-    }
+    var data = arguments[0] === undefined ? {} : arguments[0];
     _get(Object.getPrototypeOf(Engine.prototype), "constructor", this).call(this);
     this.lifespan = new Lifespan();
-    this.remutable = new Remutable(init);
+    this.remutable = new Remutable(data);
     this.remutableProducer = this.remutable.createProducer();
     this.remutableConsumer = this.remutable.createConsumer();
     _.bindAll(this);
