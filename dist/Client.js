@@ -84,7 +84,7 @@ var Client = (function () {
       value: function fetch(path, hash) {
         if (__DEV__) {
           path.should.be.a.String;
-          (hash === null || _.isString(hash)).should.be["true"];
+          (hash === null || _.isNumber(hash)).should.be["true"];
         }
         throw new TypeError("Virtual method invocation");
       },
@@ -355,7 +355,7 @@ var Client = (function () {
           return producer.apply(patch);
         } // we don't have a recent enough version, we need to refetch
         if (!refetching) {
-          // if we arent already refetching, request a newer version (atleast >= target)
+          // if we arent already refetching, request a newer version (atleast newer than target)
           return this._refetch(path, target);
         } // if we are already refetching, store the patch for later
         patches[source] = patch;
@@ -380,16 +380,16 @@ var Client = (function () {
       configurable: true
     },
     _refetch: {
-      value: function Refetch(path, target) {
+      value: function Refetch(path, hash) {
         var _this5 = this;
         if (__DEV__) {
           path.should.be.a.String;
-          (target === null || _.isString(target)).should.be["true"];
+          (hash === null || _.isNumber(hash)).should.be["true"];
           this._stores.should.have.property(path);
         }
         this._stores[path].refetching = true;
         // we use the fetch method from the adapter
-        return this.fetch(path, target).then(function (remutable) {
+        return this.fetch(path, hash).then(function (remutable) {
           if (_this5._stores[path] === void 0) {
             // not interested anymore
             return;

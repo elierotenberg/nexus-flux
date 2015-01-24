@@ -47,7 +47,7 @@ class Client {
   fetch(path, hash) {
     if(__DEV__) {
       path.should.be.a.String;
-      (hash === null || _.isString(hash)).should.be.true;
+      (hash === null || _.isNumber(hash)).should.be.true;
     }
     throw new TypeError('Virtual method invocation');
   }
@@ -220,7 +220,7 @@ class Client {
     if(hash === source) { // if the patch applies to our current version, apply it now
       return producer.apply(patch);
     } // we don't have a recent enough version, we need to refetch
-    if(!refetching) { // if we arent already refetching, request a newer version (atleast >= target)
+    if(!refetching) { // if we arent already refetching, request a newer version (atleast newer than target)
       return this._refetch(path, target);
     } // if we are already refetching, store the patch for later
     patches[source] = patch;
@@ -237,15 +237,15 @@ class Client {
     producer.delete();
   }
 
-  _refetch(path, target) {
+  _refetch(path, hash) {
     if(__DEV__) {
       path.should.be.a.String;
-      (target === null || _.isString(target)).should.be.true;
+      (hash === null || _.isNumber(hash)).should.be.true;
       this._stores.should.have.property(path);
     }
     this._stores[path].refetching = true;
     // we use the fetch method from the adapter
-    return this.fetch(path, target).then((remutable) => {
+    return this.fetch(path, hash).then((remutable) => {
       if(this._stores[path] === void 0) { // not interested anymore
         return;
       }
