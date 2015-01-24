@@ -80,7 +80,7 @@ class Subscribe extends Event {
   }
 
   _toJS() {
-    return { p: this.patch };
+    return { p: this.path };
   }
 
   static t() {

@@ -199,7 +199,7 @@ var Delete = (function (Event) {
   }, {
     _toJS: {
       value: function ToJS() {
-        return { p: this.patch };
+        return { p: this.path };
       },
       writable: true,
       enumerable: true,
