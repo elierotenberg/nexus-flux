@@ -158,7 +158,7 @@ class Client {
     }
     const { engine } = this._stores[path] || (() => { // if we don't know this store yet, then subscribe
       this.sendToServer(new Client.Event.Subscribe({ path }));
-      const engine = new Store.Engine(this.isInjecting ? this.inject(path) : null);
+      const engine = new Store.Engine(this.isInjecting ? this.getInjected(path) : null);
       this._stores[path] = {
         engine,
         producer: engine.createProducer(),
