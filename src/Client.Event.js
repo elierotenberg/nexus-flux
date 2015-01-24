@@ -52,7 +52,7 @@ class Open extends Event {
   }
 
   static fromJS({ c }) {
-    return new Open(c);
+    return new Open({ clientID: c });
   }
 }
 
@@ -88,7 +88,7 @@ class Subscribe extends Event {
   }
 
   static fromJS({ p }) {
-    return new Subscribe(p);
+    return new Subscribe({ path: p });
   }
 }
 
@@ -110,7 +110,7 @@ class Unsubscribe extends Event {
   }
 
   static fromJS({ p }) {
-    return new Unsubscribe(p);
+    return new Unsubscribe({ path: p });
   }
 }
 
@@ -133,7 +133,7 @@ class Dispatch extends Event {
   }
 
   static fromJS({ p, a }) {
-    return new Dispatch(p, a);
+    return new Dispatch({ path: p, params: a });
   }
 }
 

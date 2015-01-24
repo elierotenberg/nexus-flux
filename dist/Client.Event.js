@@ -133,7 +133,7 @@ var Open = (function (Event) {
     fromJS: {
       value: function fromJS(_ref2) {
         var c = _ref2.c;
-        return new Open(c);
+        return new Open({ clientID: c });
       },
       writable: true,
       enumerable: true,
@@ -217,7 +217,7 @@ var Subscribe = (function (Event) {
     fromJS: {
       value: function fromJS(_ref4) {
         var p = _ref4.p;
-        return new Subscribe(p);
+        return new Subscribe({ path: p });
       },
       writable: true,
       enumerable: true,
@@ -261,7 +261,7 @@ var Unsubscribe = (function (Event) {
     fromJS: {
       value: function fromJS(_ref6) {
         var p = _ref6.p;
-        return new Unsubscribe(p);
+        return new Unsubscribe({ path: p });
       },
       writable: true,
       enumerable: true,
@@ -308,7 +308,7 @@ var Dispatch = (function (Event) {
       value: function fromJS(_ref8) {
         var p = _ref8.p;
         var a = _ref8.a;
-        return new Dispatch(p, a);
+        return new Dispatch({ path: p, params: a });
       },
       writable: true,
       enumerable: true,
