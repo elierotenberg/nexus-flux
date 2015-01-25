@@ -17,14 +17,12 @@ class Producer {
     });
   }
 
-  dispatch(params, clientID) {
+  dispatch(params = {}, clientHash = '') {
     if(__DEV__) {
       params.should.be.an.Object;
-      if(clientID !== void 0) {
-        clientID.should.be.a.String;
-      }
+      clientHash.should.be.a.String;
     }
-    this._engine.dispatch(params, clientID);
+    this._engine.dispatch(params, clientHash);
     return this;
   }
 }

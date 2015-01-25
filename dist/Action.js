@@ -79,14 +79,14 @@ var Producer = (function () {
 
   _prototypeProperties(Producer, null, {
     dispatch: {
-      value: function dispatch(params, clientID) {
+      value: function dispatch() {
+        var params = arguments[0] === undefined ? {} : arguments[0];
+        var clientHash = arguments[1] === undefined ? "" : arguments[1];
         if (__DEV__) {
           params.should.be.an.Object;
-          if (clientID !== void 0) {
-            clientID.should.be.a.String;
-          }
+          clientHash.should.be.a.String;
         }
-        this._engine.dispatch(params, clientID);
+        this._engine.dispatch(params, clientHash);
         return this;
       },
       writable: true,
