@@ -32,10 +32,10 @@
     "asap": "^2.0.0",
     "bluebird": "^2.9.3",
     "immutable": "^3.6.2",
-    "lifespan": "^2.7.1",
+    "lifespan": "^2.8.1",
     "lodash": "^3.0.1",
     "nexus-events": "^1.0.2",
-    "remutable": "^0.20.1",
+    "remutable": "^0.21.0",
     "sha256": "^0.1.1",
     "should": "^4.6.2"
   }
