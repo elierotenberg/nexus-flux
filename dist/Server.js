@@ -62,7 +62,7 @@ var Remutable = _interopRequire(require("remutable"));
 
 var Lifespan = _interopRequire(require("lifespan"));
 
-var sha256 = _interopRequire(require("sha256"));
+var hashClientID = _interopRequire(require("./hashClientID"));
 
 var EventEmitter = require("nexus-events").EventEmitter;
 var Store = _interopRequire(require("./Store"));
@@ -228,7 +228,7 @@ var Server = (function (EventEmitter) {
         if (ev instanceof Client.Event.Dispatch) {
           if (this._links[linkID].clientID !== null && this._actions[ev.path] !== void 0) {
             // hash clientID. the action handlers shouldn't have access to it. (security issue)
-            return this._actions[ev.path].producer.dispatch(ev.params, sha256(this._links[linkID].clientID));
+            return this._actions[ev.path].producer.dispatch(ev.params, hashClientID(this._links[linkID].clientID));
           }
           return;
         }
@@ -356,7 +356,6 @@ var Server = (function (EventEmitter) {
 
 _Server = Server;
 
-Server.Event = Event;
-Server.Link = Link;
+Object.assign(Server, { Event: Event, Link: Link, hashClientID: hashClientID });
 
 module.exports = Server;

@@ -1,6 +1,6 @@
 import Remutable from 'remutable';
 import Lifespan from 'lifespan';
-import sha256 from 'sha256';
+import hashClientID from './hashClientID';
 import { EventEmitter } from 'nexus-events';
 
 import Store from './Store';
@@ -124,7 +124,7 @@ class Server extends EventEmitter {
     if(ev instanceof Client.Event.Dispatch) {
       if(this._links[linkID].clientID !== null && this._actions[ev.path] !== void 0) {
         // hash clientID. the action handlers shouldn't have access to it. (security issue)
-        return this._actions[ev.path].producer.dispatch(ev.params, sha256(this._links[linkID].clientID));
+        return this._actions[ev.path].producer.dispatch(ev.params, hashClientID(this._links[linkID].clientID));
       }
       return;
     }
@@ -208,7 +208,6 @@ class Server extends EventEmitter {
 
 _Server = Server;
 
-Server.Event = Event;
-Server.Link = Link;
+Object.assign(Server, { Event, Link, hashClientID });
 
 export default Server;

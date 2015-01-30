@@ -3,6 +3,7 @@ import Remutable from 'remutable';
 const { Patch } = Remutable;
 import Lifespan from 'lifespan';
 
+import hashClientID from './hashClientID';
 import Store from './Store';
 import Action from './Action';
 import Server from './Server.Event'; // we just need this reference for typechecks
@@ -24,6 +25,7 @@ class Client {
     this.lifespan = new Lifespan();
     _.bindAll(this);
     this._clientID = clientID;
+    this._clientHash = hashClientID(clientID);
     this._stores = {};
     this._refetching = {};
     this._actions = {};
@@ -60,6 +62,10 @@ class Client {
       ev.should.be.an.instanceOf(Client.Event);
     }
     throw new TypeError('Virtual method invocation');
+  }
+
+  get clientHash() {
+    return this._clientHash;
   }
 
   get isPrefetching() {

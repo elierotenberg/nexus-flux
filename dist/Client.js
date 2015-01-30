@@ -28,6 +28,8 @@ var Remutable = _interopRequire(require("remutable"));
 var Patch = Remutable.Patch;
 var Lifespan = _interopRequire(require("lifespan"));
 
+var hashClientID = _interopRequire(require("./hashClientID"));
+
 var Store = _interopRequire(require("./Store"));
 
 var Action = _interopRequire(require("./Action"));
@@ -57,6 +59,7 @@ var Client = (function () {
       _this.lifespan = new Lifespan();
       _.bindAll(_this);
       _this._clientID = clientID;
+      _this._clientHash = hashClientID(clientID);
       _this._stores = {};
       _this._refetching = {};
       _this._actions = {};
@@ -104,6 +107,13 @@ var Client = (function () {
         throw new TypeError("Virtual method invocation");
       },
       writable: true,
+      enumerable: true,
+      configurable: true
+    },
+    clientHash: {
+      get: function () {
+        return this._clientHash;
+      },
       enumerable: true,
       configurable: true
     },
