@@ -1,8 +1,6 @@
 "use strict";
 
-var _interopRequire = function (obj) {
-  return obj && (obj["default"] || obj);
-};
+var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
 
 require("6to5/polyfill");
 var _ = require("lodash");
@@ -18,8 +16,10 @@ if (__DEV__) {
 }
 var Lifespan = _interopRequire(require("lifespan"));
 
-var Client = require("./adapters/Local").Client;
-var Server = require("./adapters/Local").Server;
+var _adaptersLocal = require("./adapters/Local");
+
+var Client = _adaptersLocal.Client;
+var Server = _adaptersLocal.Server;
 
 
 var server = new Server();
@@ -56,8 +56,8 @@ _.defer(function () {
   });
 
   server.Action("/removeItem", server.lifespan) // register a new action
-  .onDispatch(function (_ref2, clientHash) {
-    var name = _ref2.name;
+  .onDispatch(function (_ref, clientHash) {
+    var name = _ref.name;
     // register another action handler
     if (todoList.working.get(name) === void 0) {
       // if we don't have this action, dismiss
@@ -80,8 +80,8 @@ _.defer(function () {
   var removeItem = client.Action("/removeItem", client.lifespan).dispatch;
 
   client.Store("/clock", client.lifespan) // subscribe to a store
-  .onUpdate(function (_ref3) {
-    var head = _ref3.head;
+  .onUpdate(function (_ref) {
+    var head = _ref.head;
     // every time its updated (including when its first fetched), display the modified value (it is an Immutable.Map)
     console.log("clock tick", head.get("date"));
   }).onDelete(function () {
@@ -90,8 +90,8 @@ _.defer(function () {
   });
 
   var todoListLifespan = new Lifespan(); // this store subscribers has a limited lifespan (eg. a React components' own lifespan)
-  var todoList = client.Store("/todoList", todoListLifespan).onUpdate(function (_ref4, patch) {
-    var head = _ref4.head;
+  var todoList = client.Store("/todoList", todoListLifespan).onUpdate(function (_ref, patch) {
+    var head = _ref.head;
     // when its updated, we can access not only the up-to-date head, but also the underlying patch object,
     console.log("received todoList patch:", patch); // if we want to do something with it (we can just ignore it as above)
     console.log("todoList head is now:", head.toJS());
@@ -111,8 +111,8 @@ _.defer(function () {
     return addItem({ name: "Stronger", description: "Code stronger" });
   }, 3000) // add an item in 3000ms
   .setTimeout(function () {
-    return todoList.value.forEach(function (_ref5, name) {
-      var description = _ref5.description;
+    return todoList.value.forEach(function (_ref, name) {
+      var description = _ref.description;
       // remove every item in 4000
       removeItem({ name: name });
     });

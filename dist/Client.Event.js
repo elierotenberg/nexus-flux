@@ -1,46 +1,10 @@
 "use strict";
 
-var _get = function get(object, property, receiver) {
-  var desc = Object.getOwnPropertyDescriptor(object, property);
+var _get = function get(object, property, receiver) { var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc && desc.writable) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
 
-  if (desc === undefined) {
-    var parent = Object.getPrototypeOf(object);
+var _inherits = function (subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
 
-    if (parent === null) {
-      return undefined;
-    } else {
-      return get(parent, property, receiver);
-    }
-  } else if ("value" in desc && desc.writable) {
-    return desc.value;
-  } else {
-    var getter = desc.get;
-    if (getter === undefined) {
-      return undefined;
-    }
-    return getter.call(receiver);
-  }
-};
-
-var _inherits = function (subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
-  }
-  subClass.prototype = Object.create(superClass && superClass.prototype, {
-    constructor: {
-      value: subClass,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    }
-  });
-  if (superClass) subClass.__proto__ = superClass;
-};
-
-var _prototypeProperties = function (child, staticProps, instanceProps) {
-  if (staticProps) Object.defineProperties(child, staticProps);
-  if (instanceProps) Object.defineProperties(child.prototype, instanceProps);
-};
+var _prototypeProperties = function (child, staticProps, instanceProps) { if (staticProps) Object.defineProperties(child, staticProps); if (instanceProps) Object.defineProperties(child.prototype, instanceProps); };
 
 require("6to5/polyfill");
 var _ = require("lodash");
@@ -76,7 +40,6 @@ var Event = (function () {
         return Event._[t].fromJS(j);
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   }, {
@@ -90,7 +53,6 @@ var Event = (function () {
         return this._js;
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     toJSON: {
@@ -101,7 +63,6 @@ var Event = (function () {
         return this._json;
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   });
@@ -127,25 +88,22 @@ var Open = (function (Event) {
         return "o";
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     fromJS: {
-      value: function fromJS(_ref2) {
-        var c = _ref2.c;
+      value: function fromJS(_ref) {
+        var c = _ref.c;
         return new Open({ clientID: c });
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   }, {
     _toJS: {
-      value: function ToJS() {
+      value: function _toJS() {
         return { c: this.clientID };
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   });
@@ -168,7 +126,6 @@ var Close = (function (Event) {
         return "c";
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     fromJS: {
@@ -176,16 +133,14 @@ var Close = (function (Event) {
         return new Close();
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   }, {
     _toJS: {
-      value: function ToJS() {
+      value: function _toJS() {
         return {};
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   });
@@ -194,8 +149,8 @@ var Close = (function (Event) {
 })(Event);
 
 var Subscribe = (function (Event) {
-  function Subscribe(_ref3) {
-    var path = _ref3.path;
+  function Subscribe(_ref) {
+    var path = _ref.path;
     if (__DEV__) {
       path.should.be.a.String;
     }
@@ -211,25 +166,22 @@ var Subscribe = (function (Event) {
         return "s";
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     fromJS: {
-      value: function fromJS(_ref4) {
-        var p = _ref4.p;
+      value: function fromJS(_ref) {
+        var p = _ref.p;
         return new Subscribe({ path: p });
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   }, {
     _toJS: {
-      value: function ToJS() {
+      value: function _toJS() {
         return { p: this.path };
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   });
@@ -238,8 +190,8 @@ var Subscribe = (function (Event) {
 })(Event);
 
 var Unsubscribe = (function (Event) {
-  function Unsubscribe(_ref5) {
-    var path = _ref5.path;
+  function Unsubscribe(_ref) {
+    var path = _ref.path;
     if (__DEV__) {
       path.should.be.a.String;
     }
@@ -255,25 +207,22 @@ var Unsubscribe = (function (Event) {
         return "u";
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     fromJS: {
-      value: function fromJS(_ref6) {
-        var p = _ref6.p;
+      value: function fromJS(_ref) {
+        var p = _ref.p;
         return new Unsubscribe({ path: p });
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   }, {
     _toJS: {
-      value: function ToJS() {
+      value: function _toJS() {
         return { p: this.patch };
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   });
@@ -282,9 +231,9 @@ var Unsubscribe = (function (Event) {
 })(Event);
 
 var Dispatch = (function (Event) {
-  function Dispatch(_ref7) {
-    var path = _ref7.path;
-    var params = _ref7.params;
+  function Dispatch(_ref) {
+    var path = _ref.path;
+    var params = _ref.params;
     if (__DEV__) {
       path.should.be.a.String;
       params.should.be.an.Object;
@@ -301,26 +250,23 @@ var Dispatch = (function (Event) {
         return "d";
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     fromJS: {
-      value: function fromJS(_ref8) {
-        var p = _ref8.p;
-        var a = _ref8.a;
+      value: function fromJS(_ref) {
+        var p = _ref.p;
+        var a = _ref.a;
         return new Dispatch({ path: p, params: a });
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   }, {
     _toJS: {
-      value: function ToJS() {
+      value: function _toJS() {
         return { p: this.path, a: this.params };
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   });

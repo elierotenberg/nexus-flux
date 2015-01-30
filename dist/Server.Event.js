@@ -1,46 +1,10 @@
 "use strict";
 
-var _get = function get(object, property, receiver) {
-  var desc = Object.getOwnPropertyDescriptor(object, property);
+var _get = function get(object, property, receiver) { var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc && desc.writable) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
 
-  if (desc === undefined) {
-    var parent = Object.getPrototypeOf(object);
+var _inherits = function (subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
 
-    if (parent === null) {
-      return undefined;
-    } else {
-      return get(parent, property, receiver);
-    }
-  } else if ("value" in desc && desc.writable) {
-    return desc.value;
-  } else {
-    var getter = desc.get;
-    if (getter === undefined) {
-      return undefined;
-    }
-    return getter.call(receiver);
-  }
-};
-
-var _inherits = function (subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
-  }
-  subClass.prototype = Object.create(superClass && superClass.prototype, {
-    constructor: {
-      value: subClass,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    }
-  });
-  if (superClass) subClass.__proto__ = superClass;
-};
-
-var _prototypeProperties = function (child, staticProps, instanceProps) {
-  if (staticProps) Object.defineProperties(child, staticProps);
-  if (instanceProps) Object.defineProperties(child.prototype, instanceProps);
-};
+var _prototypeProperties = function (child, staticProps, instanceProps) { if (staticProps) Object.defineProperties(child, staticProps); if (instanceProps) Object.defineProperties(child.prototype, instanceProps); };
 
 require("6to5/polyfill");
 var _ = require("lodash");
@@ -77,7 +41,6 @@ var Event = (function () {
         return Event._[t].fromJS(j);
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   }, {
@@ -91,7 +54,6 @@ var Event = (function () {
         return this._js;
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     toJSON: {
@@ -102,7 +64,6 @@ var Event = (function () {
         return this._json;
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   });
@@ -130,13 +91,12 @@ var Update = (function (Event) {
         return "u";
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     fromJS: {
-      value: function fromJS(_ref2) {
-        var p = _ref2.p;
-        var u = _ref2.u;
+      value: function fromJS(_ref) {
+        var p = _ref.p;
+        var u = _ref.u;
         if (__DEV__) {
           p.should.be.a.String;
           u.should.be.an.Object;
@@ -144,18 +104,16 @@ var Update = (function (Event) {
         return new Update({ path: p, patch: Patch.fromJS(u) });
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   }, {
     _toJS: {
-      value: function ToJS() {
+      value: function _toJS() {
         return {
           p: this.path,
           u: this.patch.toJS() };
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   });
@@ -164,8 +122,8 @@ var Update = (function (Event) {
 })(Event);
 
 var Delete = (function (Event) {
-  function Delete(_ref3) {
-    var path = _ref3.path;
+  function Delete(_ref) {
+    var path = _ref.path;
     if (__DEV__) {
       path.should.be.a.String;
     }
@@ -181,28 +139,25 @@ var Delete = (function (Event) {
         return "d";
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     fromJS: {
-      value: function fromJS(_ref4) {
-        var p = _ref4.p;
+      value: function fromJS(_ref) {
+        var p = _ref.p;
         if (__DEV__) {
           p.should.be.a.String;
         }
         return new Delete({ path: p });
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   }, {
     _toJS: {
-      value: function ToJS() {
+      value: function _toJS() {
         return { p: this.path };
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   });

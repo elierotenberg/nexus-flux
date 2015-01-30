@@ -10,7 +10,7 @@ class Producer {
     if(__DEV__) {
       engine.should.be.an.instanceOf(_Engine);
     }
-    _.bindAll(this);
+    _.bindAll(this, ['dispatch']);
     Object.assign(this, {
       _engine: engine,
       lifespan: new Lifespan(),
@@ -36,7 +36,7 @@ class Consumer {
       _engine: engine,
       lifespan: new Lifespan(),
     });
-    _.bindAll(this);
+    _.bindAll(this, ['onDispatch']);
 
     if(__DEV__) {
       this._onDispatchHandlers = 0;
@@ -67,7 +67,11 @@ class Engine extends EventEmitter {
   constructor() {
     super();
     this.lifespan = new Lifespan();
-    _.bindAll(this);
+    _.bindAll(this, [
+      'createProducer',
+      'createConsumer',
+      'dispatch',
+    ]);
     this.consumers = 0;
     this.producers = 0;
     this.lifespan.onRelease(() => {

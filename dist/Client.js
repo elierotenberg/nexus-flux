@@ -1,13 +1,8 @@
 "use strict";
 
-var _prototypeProperties = function (child, staticProps, instanceProps) {
-  if (staticProps) Object.defineProperties(child, staticProps);
-  if (instanceProps) Object.defineProperties(child.prototype, instanceProps);
-};
+var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
 
-var _interopRequire = function (obj) {
-  return obj && (obj["default"] || obj);
-};
+var _prototypeProperties = function (child, staticProps, instanceProps) { if (staticProps) Object.defineProperties(child, staticProps); if (instanceProps) Object.defineProperties(child.prototype, instanceProps); };
 
 require("6to5/polyfill");
 var _ = require("lodash");
@@ -49,33 +44,30 @@ var Client = (function () {
   function Client() {
     var _this = this;
     var clientID = arguments[0] === undefined ? _.uniqueId("Client" + _.random(1, INT_MAX - 1)) : arguments[0];
-    return (function () {
-      if (__DEV__) {
-        clientID.should.be.a.String;
-        _this.constructor.should.not.be.exactly(Client); // ensure abstract
-        _this.fetch.should.not.be.exactly(Client.prototype.fetch); // ensure virtual
-        _this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer); // ensure virtual
-      }
-      _this.lifespan = new Lifespan();
-      _.bindAll(_this);
-      _this._clientID = clientID;
-      _this._clientHash = hashClientID(clientID);
-      _this._stores = {};
-      _this._refetching = {};
-      _this._actions = {};
+    if (__DEV__) {
+      clientID.should.be.a.String;
+      this.constructor.should.not.be.exactly(Client); // ensure abstract
+      this.fetch.should.not.be.exactly(Client.prototype.fetch); // ensure virtual
+      this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer); // ensure virtual
+    }
+    this.lifespan = new Lifespan();
+    this._clientID = clientID;
+    this._clientHash = hashClientID(clientID);
+    this._stores = {};
+    this._refetching = {};
+    this._actions = {};
+    this._injected = null;
+    this._prefetched = null;
+    this.lifespan.onRelease(function () {
+      _this._clientID = null;
+      _this._stores = null;
+      _this._refetching = null;
+      _this._actions = null;
       _this._injected = null;
       _this._prefetched = null;
-      _this.lifespan.onRelease(function () {
-        _this._clientID = null;
-        _this._stores = null;
-        _this._refetching = null;
-        _this._actions = null;
-        _this._injected = null;
-        _this._prefetched = null;
-      });
+    });
 
-      _this.sendToServer(new Client.Event.Open({ clientID: clientID }));
-    })();
+    this.sendToServer(new Client.Event.Open({ clientID: clientID }));
   }
 
   _prototypeProperties(Client, null, {
@@ -92,7 +84,6 @@ var Client = (function () {
         throw new TypeError("Virtual method invocation");
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     sendToServer: {
@@ -107,21 +98,18 @@ var Client = (function () {
         throw new TypeError("Virtual method invocation");
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     clientHash: {
       get: function () {
         return this._clientHash;
       },
-      enumerable: true,
       configurable: true
     },
     isPrefetching: {
       get: function () {
         return this._prefetched !== null;
       },
-      enumerable: true,
       configurable: true
     },
     getPrefetched: {
@@ -135,7 +123,6 @@ var Client = (function () {
         return this._prefetched[path].head;
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     startPrefetching: {
@@ -146,7 +133,6 @@ var Client = (function () {
         this._prefetched = {};
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     stopPrefetching: {
@@ -161,12 +147,11 @@ var Client = (function () {
         });
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     prefetch: {
       value: function prefetch(path) {
-        var _this2 = this;
+        var _this = this;
         if (__DEV__) {
           path.should.be.a.String;
           this.isPrefetching.should.be["true"];
@@ -176,26 +161,24 @@ var Client = (function () {
             var prefetched = {
               promise: null,
               head: null };
-            prefetched.promise = _this2.fetch(path, null).then(function (_ref2) {
-              var head = _ref2.head;
+            prefetched.promise = _this.fetch(path, null).then(function (_ref) {
+              var head = _ref.head;
               return prefetched.head = head;
             })["catch"](function () {
               return prefetched.head = null;
             });
-            _this2._prefetched[path] = prefetched;
+            _this._prefetched[path] = prefetched;
           })();
         }
         return this._prefetched[path].promise;
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     isInjecting: {
       get: function () {
         return this._injected !== null;
       },
-      enumerable: true,
       configurable: true
     },
     getInjected: {
@@ -209,7 +192,6 @@ var Client = (function () {
         return null;
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     startInjecting: {
@@ -223,7 +205,6 @@ var Client = (function () {
         });
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     stopInjecting: {
@@ -234,7 +215,6 @@ var Client = (function () {
         this._injected = null;
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     receiveFromServer: {
@@ -251,7 +231,6 @@ var Client = (function () {
         throw new TypeError("Unknown event: " + ev);
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     Store: {
@@ -266,39 +245,38 @@ var Client = (function () {
 
         return _StoreWrapper;
       })(function (path, lifespan) {
-        var _this3 = this;
+        var _this = this;
         // returns a Store consumer
         if (__DEV__) {
           path.should.be.a.String;
           lifespan.should.be.an.instanceOf(Lifespan);
         }
-        var _ref3 = this._stores[path] || (function () {
+        var _ref = this._stores[path] || (function () {
           // if we don't know this store yet, then subscribe
-          _this3.sendToServer(new Client.Event.Subscribe({ path: path }));
-          var engine = new Store.Engine(_this3.isInjecting ? _this3.getInjected(path) : void 0);
-          _this3._stores[path] = {
+          _this.sendToServer(new Client.Event.Subscribe({ path: path }));
+          var engine = new Store.Engine(_this.isInjecting ? _this.getInjected(path) : void 0);
+          _this._stores[path] = {
             engine: engine,
             producer: engine.createProducer(),
             patches: {}, // initially we have no pending patches and we are not refetching
             refetching: false };
-          _this3._refetch(path, null);
-          return _this3._stores[path];
+          _this._refetch(path, null);
+          return _this._stores[path];
         })();
-        var engine = _ref3.engine;
+        var engine = _ref.engine;
         var consumer = engine.createConsumer();
         consumer.lifespan.onRelease(function () {
           if (engine.consumers === 0) {
-            _this3._stores[path].producer.lifespan.release();
+            _this._stores[path].producer.lifespan.release();
             engine.lifespan.release();
-            _this3.sendToServer(new Client.Event.Unsubscribe({ path: path }));
-            delete _this3._stores[path];
+            _this.sendToServer(new Client.Event.Unsubscribe({ path: path }));
+            delete _this._stores[path];
           }
         });
         lifespan.onRelease(consumer.lifespan.release);
         return consumer;
       }),
       writable: true,
-      enumerable: true,
       configurable: true
     },
     Action: {
@@ -313,39 +291,38 @@ var Client = (function () {
 
         return _ActionWrapper;
       })(function (path, lifespan) {
-        var _this4 = this;
+        var _this = this;
         // returns an Action producer
         if (__DEV__) {
           path.should.be.a.String;
           lifespan.should.be.an.instanceOf(Lifespan);
         }
-        var _ref4 = this._actions[path] || (function () {
+        var _ref = this._actions[path] || (function () {
           // if we don't know this action yet, start observing it
           var engine = new Action.Engine();
-          return _this4._actions[path] = {
+          return _this._actions[path] = {
             engine: engine,
             consumer: engine.createConsumer().onDispatch(function (params) {
-              return _this4.sendToServer(new Client.Event.Dispatch({ path: path, params: params }));
+              return _this.sendToServer(new Client.Event.Dispatch({ path: path, params: params }));
             }) };
         })();
-        var engine = _ref4.engine;
+        var engine = _ref.engine;
         var producer = engine.createProducer();
         producer.lifespan.onRelease(function () {
           if (engine.producers === 0) {
-            _this4._actions[path].consumer.lifespan.release();
+            _this._actions[path].consumer.lifespan.release();
             engine.lifespan.release();
-            delete _this4._actions[path];
+            delete _this._actions[path];
           }
         });
         lifespan.onRelease(producer.lifespan.release);
         return producer;
       }),
       writable: true,
-      enumerable: true,
       configurable: true
     },
     _update: {
-      value: function Update(path, patch) {
+      value: function _update(path, patch) {
         if (__DEV__) {
           path.should.be.a.String;
           patch.should.be.an.instanceOf(Patch);
@@ -371,11 +348,10 @@ var Client = (function () {
         patches[source] = patch;
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     _delete: {
-      value: function Delete(path) {
+      value: function _delete(path) {
         if (__DEV__) {
           path.should.be.a.String;
         }
@@ -386,12 +362,11 @@ var Client = (function () {
         producer["delete"]();
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     _refetch: {
-      value: function Refetch(path, hash) {
-        var _this5 = this;
+      value: function _refetch(path, hash) {
+        var _this = this;
         if (__DEV__) {
           path.should.be.a.String;
           (hash === null || _.isNumber(hash)).should.be["true"];
@@ -400,23 +375,22 @@ var Client = (function () {
         this._stores[path].refetching = true;
         // we use the fetch method from the adapter
         return this.fetch(path, hash).then(function (remutable) {
-          if (_this5._stores[path] === void 0) {
+          if (_this._stores[path] === void 0) {
             // not interested anymore
             return;
           }
           if (__DEV__) {
-            _this5._stores[path].refetching.should.be["true"];
+            _this._stores[path].refetching.should.be["true"];
           }
-          _this5._stores[path].refetching = false;
-          _this5._upgrade(path, remutable);
+          _this._stores[path].refetching = false;
+          _this._upgrade(path, remutable);
         });
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     _upgrade: {
-      value: function Upgrade(path, next) {
+      value: function _upgrade(path, next) {
         if (__DEV__) {
           path.should.be.a.String;
           (next instanceof Remutable || next instanceof Remutable.Consumer).should.be["true"];
@@ -440,8 +414,8 @@ var Client = (function () {
         }
         var version = squash.to.v;
         // clean old patches
-        _.each(patches, function (_ref5, source) {
-          var to = _ref5.to;
+        _.each(patches, function (_ref, source) {
+          var to = _ref.to;
           if (to.v <= version) {
             delete patches[source];
           }
@@ -449,7 +423,6 @@ var Client = (function () {
         producer.apply(squash);
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   });

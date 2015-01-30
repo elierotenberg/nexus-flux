@@ -13,11 +13,15 @@ class Producer {
     if(__DEV__) {
       engine.should.be.an.instanceOf(_Engine);
     }
-    _.bindAll(this);
     Object.assign(this, {
       _engine: engine,
       lifespan: new Lifespan(),
     });
+    _.bindAll(this, [
+      'get',
+      'unset',
+      'set',
+    ]);
     // proxy getters to engine.remutableProducers
     ['head', 'working', 'hash', 'version']
     .forEach((p) => Object.defineProperty(this, p, {
@@ -61,7 +65,10 @@ class Consumer {
       _engine: engine,
       lifespan: new Lifespan(),
     });
-    _.bindAll(this);
+    _.bindAll(this, [
+      'onUpdate',
+      'onDelete',
+    ]);
 
     if(__DEV__) {
       this._onUpdateHandlers = 0;
@@ -110,9 +117,15 @@ class Engine extends EventEmitter {
     super();
     this.lifespan = new Lifespan();
     this.remutable = new Remutable(data);
+    _.bindAll(this, [
+      'createProducer',
+      'createConsumer',
+      'apply',
+      'commit',
+      'delete',
+    ]);
     this.remutableProducer = this.remutable.createProducer();
     this.remutableConsumer = this.remutable.createConsumer();
-    _.bindAll(this);
     this.consumers = 0;
     this.producers = 0;
     this.lifespan.onRelease(() => {

@@ -1,50 +1,12 @@
 "use strict";
 
-var _get = function get(object, property, receiver) {
-  var desc = Object.getOwnPropertyDescriptor(object, property);
+var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
 
-  if (desc === undefined) {
-    var parent = Object.getPrototypeOf(object);
+var _get = function get(object, property, receiver) { var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ("value" in desc && desc.writable) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
 
-    if (parent === null) {
-      return undefined;
-    } else {
-      return get(parent, property, receiver);
-    }
-  } else if ("value" in desc && desc.writable) {
-    return desc.value;
-  } else {
-    var getter = desc.get;
-    if (getter === undefined) {
-      return undefined;
-    }
-    return getter.call(receiver);
-  }
-};
+var _inherits = function (subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
 
-var _inherits = function (subClass, superClass) {
-  if (typeof superClass !== "function" && superClass !== null) {
-    throw new TypeError("Super expression must either be null or a function, not " + typeof superClass);
-  }
-  subClass.prototype = Object.create(superClass && superClass.prototype, {
-    constructor: {
-      value: subClass,
-      enumerable: false,
-      writable: true,
-      configurable: true
-    }
-  });
-  if (superClass) subClass.__proto__ = superClass;
-};
-
-var _prototypeProperties = function (child, staticProps, instanceProps) {
-  if (staticProps) Object.defineProperties(child, staticProps);
-  if (instanceProps) Object.defineProperties(child.prototype, instanceProps);
-};
-
-var _interopRequire = function (obj) {
-  return obj && (obj["default"] || obj);
-};
+var _prototypeProperties = function (child, staticProps, instanceProps) { if (staticProps) Object.defineProperties(child, staticProps); if (instanceProps) Object.defineProperties(child.prototype, instanceProps); };
 
 require("6to5/polyfill");
 var _ = require("lodash");
@@ -78,10 +40,10 @@ var Producer = (function () {
     if (__DEV__) {
       engine.should.be.an.instanceOf(_Engine);
     }
-    _.bindAll(this);
     Object.assign(this, {
       _engine: engine,
       lifespan: new Lifespan() });
+    _.bindAll(this, ["get", "unset", "set"]);
     // proxy getters to engine.remutableProducers
     ["head", "working", "hash", "version"].forEach(function (p) {
       return Object.defineProperty(_this, p, {
@@ -109,7 +71,6 @@ var Producer = (function () {
         return this.working.get(path);
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     unset: {
@@ -120,7 +81,6 @@ var Producer = (function () {
         return this.set(path, void 0);
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     set: {
@@ -130,7 +90,6 @@ var Producer = (function () {
         return this;
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   });
@@ -140,14 +99,14 @@ var Producer = (function () {
 
 var Consumer = (function () {
   function Consumer(engine) {
-    var _this2 = this;
+    var _this = this;
     if (__DEV__) {
       engine.should.be.an.instanceOf(_Engine);
     }
     Object.assign(this, {
       _engine: engine,
       lifespan: new Lifespan() });
-    _.bindAll(this);
+    _.bindAll(this, ["onUpdate", "onDelete"]);
 
     if (__DEV__) {
       this._onUpdateHandlers = 0;
@@ -155,8 +114,8 @@ var Consumer = (function () {
       asap(function () {
         // check that handlers are immediatly set
         try {
-          _this2._onUpdateHandlers.should.be.above(0);
-          _this2._onDeleteHandlers.should.be.above(0);
+          _this._onUpdateHandlers.should.be.above(0);
+          _this._onDeleteHandlers.should.be.above(0);
         } catch (err) {
           console.warn("StoreConsumer: both onUpdate and onDelete handlers should be set immediatly.");
         }
@@ -169,7 +128,6 @@ var Consumer = (function () {
       get: function () {
         return this._engine.remutableConsumer.head;
       },
-      enumerable: true,
       configurable: true
     },
     onUpdate: {
@@ -184,7 +142,6 @@ var Consumer = (function () {
         return this;
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     onDelete: {
@@ -199,7 +156,6 @@ var Consumer = (function () {
         return this;
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   });
@@ -209,24 +165,24 @@ var Consumer = (function () {
 
 var Engine = (function (EventEmitter) {
   function Engine() {
-    var _this3 = this;
+    var _this = this;
     var data = arguments[0] === undefined ? {} : arguments[0];
     _get(Object.getPrototypeOf(Engine.prototype), "constructor", this).call(this);
     this.lifespan = new Lifespan();
     this.remutable = new Remutable(data);
+    _.bindAll(this, ["createProducer", "createConsumer", "apply", "commit", "delete"]);
     this.remutableProducer = this.remutable.createProducer();
     this.remutableConsumer = this.remutable.createConsumer();
-    _.bindAll(this);
     this.consumers = 0;
     this.producers = 0;
     this.lifespan.onRelease(function () {
       if (__DEV__) {
-        _this3.consumers.should.be.exactly(0);
-        _this3.producers.should.be.exactly(0);
+        _this.consumers.should.be.exactly(0);
+        _this.producers.should.be.exactly(0);
       }
-      _this3.remutable = null;
-      _this3.remutableConsumer = null;
-      _this3.remutableProducer = null;
+      _this.remutable = null;
+      _this.remutableConsumer = null;
+      _this.remutableProducer = null;
     });
   }
 
@@ -235,30 +191,28 @@ var Engine = (function (EventEmitter) {
   _prototypeProperties(Engine, null, {
     createProducer: {
       value: function createProducer() {
-        var _this4 = this;
+        var _this = this;
         var producer = new Producer(this);
         this.producers = this.producers + 1;
         producer.lifespan.onRelease(function () {
-          return _this4.producers = _this4.producers - 1;
+          return _this.producers = _this.producers - 1;
         });
         return producer;
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     createConsumer: {
       value: function createConsumer() {
-        var _this5 = this;
+        var _this = this;
         var consumer = new Consumer(this);
         this.consumers = this.consumers + 1;
         consumer.lifespan.onRelease(function () {
-          return _this5.consumers = _this5.consumers - 1;
+          return _this.consumers = _this.consumers - 1;
         });
         return consumer;
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     apply: {
@@ -270,7 +224,6 @@ var Engine = (function (EventEmitter) {
         this.emit(EVENTS.UPDATE, this.remutableConsumer, patch);
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     commit: {
@@ -279,7 +232,6 @@ var Engine = (function (EventEmitter) {
         this.emit(EVENTS.UPDATE, this.remutableConsumer, patch);
       },
       writable: true,
-      enumerable: true,
       configurable: true
     },
     "delete": {
@@ -287,7 +239,6 @@ var Engine = (function (EventEmitter) {
         this.emit(EVENTS.DELETE);
       },
       writable: true,
-      enumerable: true,
       configurable: true
     }
   });

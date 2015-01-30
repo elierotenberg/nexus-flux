@@ -23,7 +23,6 @@ class Client {
       this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer); // ensure virtual
     }
     this.lifespan = new Lifespan();
-    _.bindAll(this);
     this._clientID = clientID;
     this._clientHash = hashClientID(clientID);
     this._stores = {};
