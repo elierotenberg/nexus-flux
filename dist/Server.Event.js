@@ -6,7 +6,9 @@ var _inherits = function (subClass, superClass) { if (typeof superClass !== "fun
 
 var _prototypeProperties = function (child, staticProps, instanceProps) { if (staticProps) Object.defineProperties(child, staticProps); if (instanceProps) Object.defineProperties(child.prototype, instanceProps); };
 
-require("6to5/polyfill");
+var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+
+require("babel/polyfill");
 var _ = require("lodash");
 var should = require("should");
 var Promise = (global || window).Promise = require("bluebird");
@@ -21,6 +23,8 @@ if (__DEV__) {
 var Patch = require("remutable").Patch;
 var Event = (function () {
   function Event() {
+    _classCallCheck(this, Event);
+
     if (__DEV__) {
       this.should.have.property("_toJS").which.is.a.Function;
       this.constructor.should.have.property("fromJS").which.is.a.Function;
@@ -75,6 +79,8 @@ var Update = (function (Event) {
   function Update(_ref) {
     var path = _ref.path;
     var patch = _ref.patch;
+    _classCallCheck(this, Update);
+
     if (__DEV__) {
       path.should.be.a.String;
       patch.should.be.an.instanceOf(Patch);
@@ -124,6 +130,8 @@ var Update = (function (Event) {
 var Delete = (function (Event) {
   function Delete(_ref) {
     var path = _ref.path;
+    _classCallCheck(this, Delete);
+
     if (__DEV__) {
       path.should.be.a.String;
     }

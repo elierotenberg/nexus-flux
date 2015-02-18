@@ -10,7 +10,9 @@ var _get = function get(object, property, receiver) { var desc = Object.getOwnPr
 
 var _inherits = function (subClass, superClass) { if (typeof superClass !== "function" && superClass !== null) { throw new TypeError("Super expression must either be null or a function, not " + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
 
-require("6to5/polyfill");
+var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+
+require("babel/polyfill");
 var _ = require("lodash");
 var should = require("should");
 var Promise = (global || window).Promise = require("bluebird");
@@ -46,6 +48,8 @@ var WorkerClient = (function (Client) {
   function WorkerClient(worker) {
     var _this = this;
     var salt = arguments[1] === undefined ? DEFAULT_SALT : arguments[1];
+    _classCallCheck(this, WorkerClient);
+
     if (__DEV__) {
       worker.should.be.an.instanceOf(window.Worker);
       salt.should.be.a.String;
@@ -99,8 +103,9 @@ var WorkerClient = (function (Client) {
     receiveFromWorker: {
       value: function receiveFromWorker(message) {
         if (_.isObject(message) && message[this._salt] !== void 0) {
-          var t = message[this._salt].t;
-          var j = message[this._salt].j;
+          var _message$_salt = message[this._salt];
+          var t = _message$_salt.t;
+          var j = _message$_salt.j;
           if (t === PUBLISH) {
             var path = j.path;
             if (__DEV__) {
@@ -138,25 +143,27 @@ var WorkerClient = (function (Client) {
 
 /* jshint worker:true */
 var WorkerLink = (function (Link) {
-  function WorkerLink(self, pub) {
+  function WorkerLink(self, stores) {
     var _this = this;
     var salt = arguments[2] === undefined ? DEFAULT_SALT : arguments[2];
+    _classCallCheck(this, WorkerLink);
+
     if (__DEV__) {
       self.should.be.an.Object;
       self.postMessage.should.be.a.Function;
       self.addEventListener.should.be.a.Function;
-      public.should.be.an.Object;
+      stores.should.be.an.Object;
       salt.should.be.a.String;
     }
     _get(Object.getPrototypeOf(WorkerLink.prototype), "constructor", this).call(this);
     this._self = self;
-    this._public = pub;
+    this._stores = stores;
     this._salt = salt;
     this._self.addEventListener("message", this.receiveFromWorker);
     this.lifespan.onRelease(function () {
       _this._self.removeEventListener("message", _this.receiveFromWorker);
       _this._self = null;
-      _this._public = null;
+      _this._stores = null;
     });
   }
 
@@ -176,8 +183,9 @@ var WorkerLink = (function (Link) {
     receiveFromWorker: {
       value: function receiveFromWorker(message) {
         if (_.isObject(message) && message[this._salt] !== void 0) {
-          var t = message[this._salt].t;
-          var j = message[this._salt].j;
+          var _message$_salt = message[this._salt];
+          var t = _message$_salt.t;
+          var j = _message$_salt.j;
           if (t === EVENT) {
             var ev = Client.Event.fromJS(j);
             if (__DEV__) {
@@ -188,10 +196,10 @@ var WorkerLink = (function (Link) {
           }
           if (t === FETCH) {
             var path = j.path;
-            if (this["public"][path] === void 0) {
+            if (this.stores[path] === void 0) {
               return this._self.postMessage(_defineProperty({}, this._salt, { t: PUBLISH, j: null }));
             }
-            return this._self.postMessage(_defineProperty({}, this._salt, { t: PUBLISH, j: this["public"][path].toJS() }));
+            return this._self.postMessage(_defineProperty({}, this._salt, { t: PUBLISH, j: this.stores[path].toJS() }));
           }
           throw new TypeError("Unknown message type: " + message);
         }
@@ -210,37 +218,27 @@ var WorkerLink = (function (Link) {
 var WorkerServer = (function (Server) {
   function WorkerServer() {
     var _this = this;
-    var salt = arguments[0] === undefined ? DEFAULT_SALT : arguments[0];
+    var stores = arguments[0] === undefined ? {} : arguments[0];
+    var salt = arguments[1] === undefined ? DEFAULT_SALT : arguments[1];
+    _classCallCheck(this, WorkerServer);
+
     if (__DEV__) {
+      stores.should.be.an.Object;
       salt.should.be.a.String;
     }
     _get(Object.getPrototypeOf(WorkerServer.prototype), "constructor", this).call(this);
     this._salt = salt;
-    this._public = {};
-    this._link = new WorkerLink(self, this._public, this._salt);
+    this._stores = stores;
+    this._link = new WorkerLink(self, this._stores, this._salt);
     this.acceptLink(this._link);
     this.lifespan.onRelease(function () {
-      _this._public = null;
+      _this._stores = null;
       _this._link.release();
       _this._link = null;
     });
   }
 
   _inherits(WorkerServer, Server);
-
-  _prototypeProperties(WorkerServer, null, {
-    publish: {
-      value: function publish(path, remutableConsumer) {
-        if (__DEV__) {
-          path.should.be.a.String;
-          remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
-        }
-        this._public[path] = remutableConsumer;
-      },
-      writable: true,
-      configurable: true
-    }
-  });
 
   return WorkerServer;
 })(Server);

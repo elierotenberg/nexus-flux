@@ -6,7 +6,9 @@ var _inherits = function (subClass, superClass) { if (typeof superClass !== "fun
 
 var _prototypeProperties = function (child, staticProps, instanceProps) { if (staticProps) Object.defineProperties(child, staticProps); if (instanceProps) Object.defineProperties(child.prototype, instanceProps); };
 
-require("6to5/polyfill");
+var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+
+require("babel/polyfill");
 var _ = require("lodash");
 var should = require("should");
 var Promise = (global || window).Promise = require("bluebird");
@@ -20,6 +22,8 @@ if (__DEV__) {
 }
 var Event = (function () {
   function Event() {
+    _classCallCheck(this, Event);
+
     if (__DEV__) {
       this.should.have.property("_toJS").which.is.a.Function;
       this.constructor.should.have.property("fromJS").which.is.a.Function;
@@ -70,87 +74,11 @@ var Event = (function () {
   return Event;
 })();
 
-var Open = (function (Event) {
-  function Open(_ref) {
-    var clientID = _ref.clientID;
-    if (__DEV__) {
-      clientID.should.be.a.String;
-    }
-    _get(Object.getPrototypeOf(Open.prototype), "constructor", this).call(this);
-    Object.assign(this, { clientID: clientID });
-  }
-
-  _inherits(Open, Event);
-
-  _prototypeProperties(Open, {
-    t: {
-      value: function t() {
-        return "o";
-      },
-      writable: true,
-      configurable: true
-    },
-    fromJS: {
-      value: function fromJS(_ref) {
-        var c = _ref.c;
-        return new Open({ clientID: c });
-      },
-      writable: true,
-      configurable: true
-    }
-  }, {
-    _toJS: {
-      value: function _toJS() {
-        return { c: this.clientID };
-      },
-      writable: true,
-      configurable: true
-    }
-  });
-
-  return Open;
-})(Event);
-
-var Close = (function (Event) {
-  function Close() {
-    if (Object.getPrototypeOf(Close) !== null) {
-      Object.getPrototypeOf(Close).apply(this, arguments);
-    }
-  }
-
-  _inherits(Close, Event);
-
-  _prototypeProperties(Close, {
-    t: {
-      value: function t() {
-        return "c";
-      },
-      writable: true,
-      configurable: true
-    },
-    fromJS: {
-      value: function fromJS() {
-        return new Close();
-      },
-      writable: true,
-      configurable: true
-    }
-  }, {
-    _toJS: {
-      value: function _toJS() {
-        return {};
-      },
-      writable: true,
-      configurable: true
-    }
-  });
-
-  return Close;
-})(Event);
-
 var Subscribe = (function (Event) {
   function Subscribe(_ref) {
     var path = _ref.path;
+    _classCallCheck(this, Subscribe);
+
     if (__DEV__) {
       path.should.be.a.String;
     }
@@ -192,6 +120,8 @@ var Subscribe = (function (Event) {
 var Unsubscribe = (function (Event) {
   function Unsubscribe(_ref) {
     var path = _ref.path;
+    _classCallCheck(this, Unsubscribe);
+
     if (__DEV__) {
       path.should.be.a.String;
     }
@@ -230,21 +160,23 @@ var Unsubscribe = (function (Event) {
   return Unsubscribe;
 })(Event);
 
-var Dispatch = (function (Event) {
-  function Dispatch(_ref) {
+var Action = (function (Event) {
+  function Action(_ref) {
     var path = _ref.path;
     var params = _ref.params;
+    _classCallCheck(this, Action);
+
     if (__DEV__) {
       path.should.be.a.String;
       params.should.be.an.Object;
     }
-    _get(Object.getPrototypeOf(Dispatch.prototype), "constructor", this).call(this);
+    _get(Object.getPrototypeOf(Action.prototype), "constructor", this).call(this);
     Object.assign(this, { path: path, params: params });
   }
 
-  _inherits(Dispatch, Event);
+  _inherits(Action, Event);
 
-  _prototypeProperties(Dispatch, {
+  _prototypeProperties(Action, {
     t: {
       value: function t() {
         return "d";
@@ -256,7 +188,7 @@ var Dispatch = (function (Event) {
       value: function fromJS(_ref) {
         var p = _ref.p;
         var a = _ref.a;
-        return new Dispatch({ path: p, params: a });
+        return new Action({ path: p, params: a });
       },
       writable: true,
       configurable: true
@@ -271,14 +203,12 @@ var Dispatch = (function (Event) {
     }
   });
 
-  return Dispatch;
+  return Action;
 })(Event);
 
 Event._ = {};
-Event.Open = Event._[Open.t()] = Open;
-Event.Close = Event._[Close.t()] = Close;
 Event.Subscribe = Event._[Subscribe.t()] = Subscribe;
 Event.Unsubscribe = Event._[Unsubscribe.t()] = Unsubscribe;
-Event.Dispatch = Event._[Dispatch.t()] = Dispatch;
+Event.Action = Event._[Action.t()] = Action;
 
 module.exports = { Event: Event };

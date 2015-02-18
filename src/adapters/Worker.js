@@ -89,23 +89,23 @@ class WorkerClient extends Client {
 
 /* jshint worker:true */
 class WorkerLink extends Link {
-  constructor(self, pub, salt = DEFAULT_SALT) {
+  constructor(self, stores, salt = DEFAULT_SALT) {
     if(__DEV__) {
       self.should.be.an.Object;
       self.postMessage.should.be.a.Function;
       self.addEventListener.should.be.a.Function;
-      public.should.be.an.Object;
+      stores.should.be.an.Object;
       salt.should.be.a.String;
     }
     super();
     this._self = self;
-    this._public = pub;
+    this._stores = stores;
     this._salt = salt;
     this._self.addEventListener('message', this.receiveFromWorker);
     this.lifespan.onRelease(() => {
       this._self.removeEventListener('message', this.receiveFromWorker);
       this._self = null;
-      this._public = null;
+      this._stores = null;
     });
   }
 
@@ -129,10 +129,10 @@ class WorkerLink extends Link {
       }
       if(t === FETCH) {
         const { path } = j;
-        if(this.public[path] === void 0) {
+        if(this.stores[path] === void 0) {
           return this._self.postMessage({ [this._salt]: { t: PUBLISH, j: null } });
         }
-        return this._self.postMessage({ [this._salt]: { t: PUBLISH, j: this.public[path].toJS() } });
+        return this._self.postMessage({ [this._salt]: { t: PUBLISH, j: this.stores[path].toJS() } });
       }
       throw new TypeError(`Unknown message type: ${message}`);
     }
@@ -142,28 +142,21 @@ class WorkerLink extends Link {
 
 /* jshint worker:true */
 class WorkerServer extends Server {
-  constructor(salt = DEFAULT_SALT) {
+  constructor(stores = {}, salt = DEFAULT_SALT) {
     if(__DEV__) {
+      stores.should.be.an.Object;
       salt.should.be.a.String;
     }
     super();
     this._salt = salt;
-    this._public = {};
-    this._link = new WorkerLink(self, this._public, this._salt);
+    this._stores = stores;
+    this._link = new WorkerLink(self, this._stores, this._salt);
     this.acceptLink(this._link);
     this.lifespan.onRelease(() => {
-      this._public = null;
+      this._stores = null;
       this._link.release();
       this._link = null;
     });
-  }
-
-  publish(path, remutableConsumer) {
-    if(__DEV__) {
-      path.should.be.a.String;
-      remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
-    }
-    this._public[path] = remutableConsumer;
   }
 }
 /* jshint worker:false */

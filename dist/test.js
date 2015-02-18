@@ -2,7 +2,7 @@
 
 var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["default"] : obj; };
 
-require("6to5/polyfill");
+require("babel/polyfill");
 var _ = require("lodash");
 var should = require("should");
 var Promise = (global || window).Promise = require("bluebird");
@@ -16,13 +16,17 @@ if (__DEV__) {
 }
 var Lifespan = _interopRequire(require("lifespan"));
 
+var Remutable = _interopRequire(require("remutable"));
+
 var _adaptersLocal = require("./adapters/Local");
 
 var Client = _adaptersLocal.Client;
 var Server = _adaptersLocal.Server;
+var hash = _interopRequire(require("sha256"));
 
+var stores = {};
 
-var server = new Server();
+var server = new Server(stores);
 var client = new Client(server);
 
 server.lifespan.onRelease(function () {
@@ -34,52 +38,55 @@ client.lifespan.onRelease(function () {
 
 _.defer(function () {
   // server main
-  var clock = server.Store("/clock", server.lifespan); // create a new store, initally empty ({})
-  clock.set("date", Date.now()).commit(); // initialize it with a single field, date, and commit it immediatly
-  var todoList = server.Store("/todoList", server.lifespan); // create another store, initially empty({})
+  // initialize several stores
+  var clock = stores["/clock"] = new Remutable({
+    date: Date.now() });
+  var todoList = stores["/todoList"] = new Remutable({});
 
   server.lifespan.setInterval(function () {
-    return clock.set("date", Date.now()).commit();
+    server.dispatchUpdate("/clock", clock.set("date", Date.now()).commit());
   }, 500); // update clock every 500ms
 
-  server.Action("/addItem", server.lifespan) // register a new action
-  .onDispatch(function (_ref, clientHash) {
-    var name = _ref.name;
-    var description = _ref.description;
-    // register an Action handler
-    if (todoList.get(name) !== void 0) {
-      // ignore if we already know this task
-      return;
-    }
-    console.log("" + clientHash + " added task " + name + " (" + description + ").");
-    todoList.set(name, { description: description, clientHash: clientHash }).commit(); // add an item to the todolist and commit
-  });
+  var actions = {
+    "/addItem": function (_ref) {
+      var name = _ref.name;
+      var description = _ref.description;
+      var ownerKey = _ref.ownerKey;
+      var item = { name: name, description: description, ownerHash: hash(ownerKey) };
+      if (todoList.get(name) !== void 0) {
+        return;
+      }
+      server.dispatchUpdate("/todoList", todoList.set(name, item).commit());
+    },
+    "/removeItem": function (_ref) {
+      var name = _ref.name;
+      var ownerKey = _ref.ownerKey;
+      var item = todoList.get(name);
+      if (item === void 0) {
+        return;
+      }
+      var ownerHash = item.ownerHash;
+      if (hash(ownerKey) !== ownerHash) {
+        return;
+      }
+      server.dispatchUpdate("/todoList", todoList.set(name, void 0).commit());
+    } };
 
-  server.Action("/removeItem", server.lifespan) // register a new action
-  .onDispatch(function (_ref, clientHash) {
-    var name = _ref.name;
-    // register another action handler
-    if (todoList.working.get(name) === void 0) {
-      // if we don't have this action, dismiss
-      return;
+  server.on("action", function (_ref) {
+    var path = _ref.path;
+    var params = _ref.params;
+    if (actions[path] !== void 0) {
+      actions[path](params);
     }
-    if (todoList.working.get(name).clientHash !== clientHash) {
-      // if this client hasn't set this item, dismiss
-      return;
-    }
-    console.log("removed item " + name);
-    todoList.unset(name, void 0).commit(); // remove the item and commit
-  });
+  }, server.lifespan);
 
   server.lifespan.setTimeout(server.lifespan.release, 10000); // release the server in 10000ms
 });
 
 _.defer(function () {
   // client main
-  var addItem = client.Action("/addItem", client.lifespan).dispatch; // register 2 actions dispachers
-  var removeItem = client.Action("/removeItem", client.lifespan).dispatch;
-
-  client.Store("/clock", client.lifespan) // subscribe to a store
+  var ownerKey = hash("" + Date.now() + ":" + _.random());
+  client.getStore("/clock", client.lifespan) // subscribe to a store
   .onUpdate(function (_ref) {
     var head = _ref.head;
     // every time its updated (including when its first fetched), display the modified value (it is an Immutable.Map)
@@ -90,7 +97,7 @@ _.defer(function () {
   });
 
   var todoListLifespan = new Lifespan(); // this store subscribers has a limited lifespan (eg. a React components' own lifespan)
-  var todoList = client.Store("/todoList", todoListLifespan).onUpdate(function (_ref, patch) {
+  var todoList = client.getStore("/todoList", todoListLifespan).onUpdate(function (_ref, patch) {
     var head = _ref.head;
     // when its updated, we can access not only the up-to-date head, but also the underlying patch object,
     console.log("received todoList patch:", patch); // if we want to do something with it (we can just ignore it as above)
@@ -99,22 +106,22 @@ _.defer(function () {
     console.log("todoList deleted");
   });
 
-  addItem({ name: "Harder", description: "Code harder" }); // dispatch some actions
-  addItem({ name: "Better", description: "Code better" });
+  client.dispatchAction("/addItem", { name: "Harder", description: "Code harder", ownerKey: ownerKey }); // dispatch some actions
+  client.dispatchAction("/addItem", { name: "Better", description: "Code better", ownerKey: ownerKey });
   client.lifespan.setTimeout(function () {
-    return addItem({ name: "Faster", description: "Code Faster" });
+    return client.dispatchAction("/addItem", { name: "Faster", description: "Code Faster", ownerKey: ownerKey });
   }, 1000) // add a new item in 1000ms
   .setTimeout(function () {
-    return removeItem({ name: "Harder" });
+    return client.dispatchAction("/removeItem", { name: "Harder", ownerKey: ownerKey });
   }, 2000) // remove an item in 2000ms
   .setTimeout(function () {
-    return addItem({ name: "Stronger", description: "Code stronger" });
+    return client.dispatchAction("/addItem", { name: "Stronger", description: "Code stronger", ownerKey: ownerKey });
   }, 3000) // add an item in 3000ms
   .setTimeout(function () {
     return todoList.value.forEach(function (_ref, name) {
       var description = _ref.description;
       // remove every item in 4000
-      removeItem({ name: name });
+      client.dispatchAction("/removeItem", { name: name, ownerKey: ownerKey });
     });
   }, 4000).setTimeout(todoListLifespan.release, 5000) // release the subscriber in 5000ms
   .setTimeout(client.lifespan.release, 6000); // release the client in 6000ms

@@ -3,11 +3,8 @@ import Remutable from 'remutable';
 const { Patch } = Remutable;
 import Lifespan from 'lifespan';
 import Store from './Store';
-import Action from './Action';
 import Server from './Server.Event'; // we just need this reference for typechecks
 import { Event } from './Client.Event';
-
-const INT_MAX = 9007199254740992;
 
 /**
  * @abstract
@@ -191,9 +188,9 @@ class Client {
   dispatchAction(path, params = {}) {
     if(__DEV__) {
       path.should.be.a.String;
-      payload.should.be.an.Object;
+      params.should.be.an.Object;
     }
-    this.sendToServer(new Client.Event.Dispatch({ path, param }));
+    this.sendToServer(new Client.Event.Action({ path, params }));
   }
 
   _update(path, patch) {

@@ -8,7 +8,9 @@ var _inherits = function (subClass, superClass) { if (typeof superClass !== "fun
 
 var _prototypeProperties = function (child, staticProps, instanceProps) { if (staticProps) Object.defineProperties(child, staticProps); if (instanceProps) Object.defineProperties(child.prototype, instanceProps); };
 
-require("6to5/polyfill");
+var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+
+require("babel/polyfill");
 var _ = require("lodash");
 var should = require("should");
 var Promise = (global || window).Promise = require("bluebird");
@@ -37,6 +39,8 @@ var _Engine = undefined;
 var Producer = (function () {
   function Producer(engine) {
     var _this = this;
+    _classCallCheck(this, Producer);
+
     if (__DEV__) {
       engine.should.be.an.instanceOf(_Engine);
     }
@@ -100,6 +104,8 @@ var Producer = (function () {
 var Consumer = (function () {
   function Consumer(engine) {
     var _this = this;
+    _classCallCheck(this, Consumer);
+
     if (__DEV__) {
       engine.should.be.an.instanceOf(_Engine);
     }
@@ -167,6 +173,8 @@ var Engine = (function (EventEmitter) {
   function Engine() {
     var _this = this;
     var data = arguments[0] === undefined ? {} : arguments[0];
+    _classCallCheck(this, Engine);
+
     _get(Object.getPrototypeOf(Engine.prototype), "constructor", this).call(this);
     this.lifespan = new Lifespan();
     this.remutable = new Remutable(data);

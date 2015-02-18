@@ -1,4 +1,3 @@
-import Remutable from 'remutable';
 import { Client, Server } from '../';
 const { Link } = Server;
 
@@ -25,8 +24,8 @@ class LocalClient extends Client {
 
   fetch(path) { // just ignore hash
     return Promise.try(() => { // fail if there is not such published path
-      this._server.public.should.have.property(path);
-      return this._server.public[path];
+      this._server.stores.should.have.property(path);
+      return this._server.stores[path];
     });
   }
 }
@@ -52,13 +51,13 @@ class LocalLink extends Link {
 _LocalLink = LocalLink;
 
 class LocalServer extends Server {
-  constructor(public = {}) {
+  constructor(stores = {}) {
     if(__DEV__) {
-      public.should.be.an.Object;
+      stores.should.be.an.Object;
     }
     super();
-    this.public = public;
-    this.lifespan.onRelease(() => this.public = null);
+    this.stores = stores;
+    this.lifespan.onRelease(() => this.stores = null);
   }
 }
 

@@ -8,7 +8,9 @@ var _inherits = function (subClass, superClass) { if (typeof superClass !== "fun
 
 var _prototypeProperties = function (child, staticProps, instanceProps) { if (staticProps) Object.defineProperties(child, staticProps); if (instanceProps) Object.defineProperties(child.prototype, instanceProps); };
 
-require("6to5/polyfill");
+var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+
+require("babel/polyfill");
 var _ = require("lodash");
 var should = require("should");
 var Promise = (global || window).Promise = require("bluebird");
@@ -24,13 +26,7 @@ var Remutable = _interopRequire(require("remutable"));
 
 var Lifespan = _interopRequire(require("lifespan"));
 
-var hashClientID = _interopRequire(require("./hashClientID"));
-
 var EventEmitter = require("nexus-events").EventEmitter;
-var Store = _interopRequire(require("./Store"));
-
-var Action = _interopRequire(require("./Action"));
-
 var Client = _interopRequire(require("./Client.Event"));
 
 // we just need this reference for typechecks
@@ -45,12 +41,13 @@ var _Server = undefined;
 var Link = (function () {
   function Link() {
     var _this = this;
+    _classCallCheck(this, Link);
+
     if (__DEV__) {
       this.constructor.should.not.be.exactly(Link); // ensure abstracts
       this.sendToClient.should.not.be.exactly(Link.prototype.sendToClient); // ensure virtual
     }
     this.lifespan = new Lifespan();
-    _.bindAll(this);
     this.receiveFromClient = null; // will be set by the server; should be called when received client events, to forward them to the server
     this.lifespan.onRelease(function () {
       _this.receiveFromClient = null;
@@ -100,37 +97,100 @@ var Link = (function () {
   return Link;
 })();
 
-/**
- * @abstract
- */
 var Server = (function (EventEmitter) {
   function Server() {
-    if (__DEV__) {
-      this.constructor.should.not.be.exactly(Server); // ensure abstracts
-      this.publish.should.not.be.exactly(Server.prototype.publish); // ensure virtual
-    }
+    var _this = this;
+    _classCallCheck(this, Server);
+
     _get(Object.getPrototypeOf(Server.prototype), "constructor", this).call(this);
     this.lifespan = new Lifespan();
-    _.bindAll(this);
-    this._stores = {};
-    this._actions = {};
     this._links = {};
+    this._subscriptions = {};
+    this.lifespan.onRelease(function () {
+      _.each(_this._links, function (_ref, linkID) {
+        var link = _ref.link;
+        var subscriptions = _ref.subscriptions;
+        _.each(subscriptions, function (path) {
+          return _this.unsubscribe(linkID, path);
+        });
+        link.lifespan.release();
+      });
+      _this._links = null;
+      _this._subscriptions = null;
+    });
   }
 
   _inherits(Server, EventEmitter);
 
   _prototypeProperties(Server, null, {
-    publish: {
-
-      /**
-       * @virtual
-       */
-      value: function publish(path, remutableConsumer) {
+    dispatchAction: {
+      value: function dispatchAction(path, params) {
+        var _this = this;
+        return Promise["try"](function () {
+          if (__DEV__) {
+            path.should.be.a.String;
+            params.should.be.an.Object;
+          }
+          _this.emit("action", { path: path, params: params });
+        });
+      },
+      writable: true,
+      configurable: true
+    },
+    dispatchUpdate: {
+      value: function dispatchUpdate(path, patch) {
+        var _this = this;
         if (__DEV__) {
           path.should.be.a.String;
-          remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
+          patch.should.be.an.instanceOf(Remutable.Patch);
         }
-        throw new TypeError("Virtual method invocation");
+        if (this._subscriptions[path] !== void 0) {
+          (function () {
+            var ev = new Server.Event.Update({ path: path, patch: patch });
+            _.each(_this._subscriptions[path], function (link) {
+              link.receiveFromServer(ev);
+            });
+          })();
+        }
+        return this;
+      },
+      writable: true,
+      configurable: true
+    },
+    subscribe: {
+      value: function subscribe(linkID, path) {
+        if (__DEV__) {
+          linkID.should.be.a.String;
+          path.should.be.a.String;
+          this._links.should.have.property(linkID);
+        }
+        if (this._subscriptions[path] === void 0) {
+          this._subscriptions[path] = {};
+        }
+        this._subscriptions[path][linkID] = this._links[linkID].link;
+        if (this._links[linkID].subscriptions[path] === void 0) {
+          this._links[linkID].subscriptions[path] = path;
+        }
+        return this;
+      },
+      writable: true,
+      configurable: true
+    },
+    unsubscribe: {
+      value: function unsubscribe(linkID, path) {
+        if (__DEV__) {
+          linkID.should.be.a.String;
+          path.should.be.a.String;
+          this._links.should.have.property(linkID);
+          this._links[linkID].subscriptions.should.have.property(path);
+          this._subscriptions.should.have.property(path);
+          this._subscriptions[path].should.have.property(linkID);
+        }
+        delete this._links[linkID].subscriptions[path];
+        delete this._subscriptions[path][linkID];
+        if (_.size(this._subscriptions[path]) === 0) {
+          delete this._subscriptions[path];
+        }
       },
       writable: true,
       configurable: true
@@ -145,16 +205,16 @@ var Server = (function (EventEmitter) {
         var linkID = _.uniqueId();
         this._links[linkID] = {
           link: link,
-          subscriptions: {},
-          clientID: null };
+          subscriptions: {} };
         link.acceptFromServer(function (ev) {
           return _this.receiveFromLink(linkID, ev);
         });
         link.lifespan.onRelease(function () {
-          _this.emit("link:remove", { linkID: linkID });
+          _.each(_this._links[linkID].subscriptions, function (path) {
+            return _this.unsubscribe(linkID, path);
+          });
           delete _this._links[linkID];
         });
-        this.emit("link:add", { linkID: linkID });
       },
       writable: true,
       configurable: true
@@ -166,139 +226,19 @@ var Server = (function (EventEmitter) {
           this._links.should.have.property(linkID);
           ev.should.be.an.instanceOf(Client.Event);
         }
-        if (ev instanceof Client.Event.Open) {
-          return this._links[linkID].clientID = ev.clientID;
-        }
-        if (ev instanceof Client.Event.Close) {
-          return this._links[linkID].clientID = null;
-        }
         if (ev instanceof Client.Event.Subscribe) {
-          return this._links[linkID].subscriptions[ev.path] = null;
+          return this.subscribe(linkID, ev.path);
         }
         if (ev instanceof Client.Event.Unsubscribe) {
-          if (this._links[linkID].subscriptions[ev.path] !== void 0) {
-            delete this._links[linkID].subscriptions[ev.path];
-            return;
-          }
-          return;
+          return this.unsubscribe(linkID, ev.path);
         }
-        if (ev instanceof Client.Event.Dispatch) {
-          if (this._links[linkID].clientID !== null && this._actions[ev.path] !== void 0) {
-            // hash clientID. the action handlers shouldn't have access to it. (security issue)
-            return this._actions[ev.path].producer.dispatch(ev.params, hashClientID(this._links[linkID].clientID));
-          }
-          return;
+        if (ev instanceof Client.Event.Action) {
+          return this.dispatchAction(ev.path, ev.params);
         }
         if (__DEV__) {
           throw new TypeError("Unknown Client.Event: " + ev);
         }
       },
-      writable: true,
-      configurable: true
-    },
-    sendToLinks: {
-      value: function sendToLinks(ev) {
-        if (__DEV__) {
-          ev.should.be.an.instanceOf(Server.Event);
-        }
-        if (ev instanceof Server.Event.Update || ev instanceof Server.Event.Delete) {
-          return _.each(this._links, function (_ref) {
-            var link = _ref.link;
-            var subscriptions = _ref.subscriptions;
-            if (subscriptions[ev.path] !== void 0) {
-              link.receiveFromServer(ev);
-            }
-          });
-        }
-        if (__DEV__) {
-          throw new TypeError("Unknown Server.Event type: " + ev);
-        }
-      },
-      writable: true,
-      configurable: true
-    },
-    Store: {
-      value: (function (_Store) {
-        var _StoreWrapper = function Store() {
-          return _Store.apply(this, arguments);
-        };
-
-        _StoreWrapper.toString = function () {
-          return _Store.toString();
-        };
-
-        return _StoreWrapper;
-      })(function (path, lifespan) {
-        var _this = this;
-        if (__DEV__) {
-          path.should.be.a.String;
-          lifespan.should.be.an.instanceOf(Lifespan);
-        }
-
-        var _ref = this._stores[path] || (function () {
-          var engine = new Store.Engine();
-          var consumer = engine.createConsumer().onUpdate(function (consumer, patch) {
-            _this.publish(path, consumer);
-            _this.sendToLinks(new Server.Event.Update({ path: path, patch: patch }));
-          }).onDelete(function () {
-            return _this.sendToLinks(new Server.Event.Delete({ path: path }));
-          });
-          // immediatly publish the (empty) store
-          _this.publish(path, engine.remutableConsumer);
-          return _this._stores[path] = { engine: engine, consumer: consumer };
-        })();
-        var engine = _ref.engine;
-        var producer = engine.createProducer();
-        producer.lifespan.onRelease(function () {
-          if (engine.producers === 0) {
-            _this._stores[path].consumer.release();
-            engine.lifespan.release();
-            delete _this._stores[path];
-          }
-        });
-        lifespan.onRelease(producer.lifespan.release);
-        return producer;
-      }),
-      writable: true,
-      configurable: true
-    },
-    Action: {
-      value: (function (_Action) {
-        var _ActionWrapper = function Action() {
-          return _Action.apply(this, arguments);
-        };
-
-        _ActionWrapper.toString = function () {
-          return _Action.toString();
-        };
-
-        return _ActionWrapper;
-      })(function (path, lifespan) {
-        var _this = this;
-        if (__DEV__) {
-          path.should.be.a.String;
-          lifespan.should.be.an.instanceOf(Lifespan);
-        }
-
-        var _ref = this._actions[path] || (function () {
-          var engine = new Action.Engine();
-          var producer = engine.createProducer();
-          return _this._actions[path] = {
-            engine: engine,
-            producer: producer };
-        })();
-        var engine = _ref.engine;
-        var consumer = engine.createConsumer();
-        consumer.lifespan.onRelease(function () {
-          if (engine.consumers === 0) {
-            _this._actions[path].producer.release();
-            engine.lifespan.release();
-            delete _this._actions[path];
-          }
-        });
-        lifespan.onRelease(consumer.lifespan.release);
-        return consumer;
-      }),
       writable: true,
       configurable: true
     }
@@ -309,6 +249,6 @@ var Server = (function (EventEmitter) {
 
 _Server = Server;
 
-Object.assign(Server, { Event: Event, Link: Link, hashClientID: hashClientID });
+Object.assign(Server, { Event: Event, Link: Link });
 
 module.exports = Server;

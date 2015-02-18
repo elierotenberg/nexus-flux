@@ -4,7 +4,9 @@ var _interopRequire = function (obj) { return obj && obj.__esModule ? obj["defau
 
 var _prototypeProperties = function (child, staticProps, instanceProps) { if (staticProps) Object.defineProperties(child, staticProps); if (instanceProps) Object.defineProperties(child.prototype, instanceProps); };
 
-require("6to5/polyfill");
+var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } };
+
+require("babel/polyfill");
 var _ = require("lodash");
 var should = require("should");
 var Promise = (global || window).Promise = require("bluebird");
@@ -23,11 +25,7 @@ var Remutable = _interopRequire(require("remutable"));
 var Patch = Remutable.Patch;
 var Lifespan = _interopRequire(require("lifespan"));
 
-var hashClientID = _interopRequire(require("./hashClientID"));
-
 var Store = _interopRequire(require("./Store"));
-
-var Action = _interopRequire(require("./Action"));
 
 var Server = _interopRequire(require("./Server.Event"));
 
@@ -35,39 +33,30 @@ var Server = _interopRequire(require("./Server.Event"));
 var Event = require("./Client.Event").Event;
 
 
-var INT_MAX = 9007199254740992;
-
 /**
  * @abstract
  */
 var Client = (function () {
   function Client() {
     var _this = this;
-    var clientID = arguments[0] === undefined ? _.uniqueId("Client" + _.random(1, INT_MAX - 1)) : arguments[0];
+    _classCallCheck(this, Client);
+
     if (__DEV__) {
-      clientID.should.be.a.String;
       this.constructor.should.not.be.exactly(Client); // ensure abstract
       this.fetch.should.not.be.exactly(Client.prototype.fetch); // ensure virtual
       this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer); // ensure virtual
     }
     this.lifespan = new Lifespan();
-    this._clientID = clientID;
-    this._clientHash = hashClientID(clientID);
     this._stores = {};
     this._refetching = {};
-    this._actions = {};
     this._injected = null;
     this._prefetched = null;
     this.lifespan.onRelease(function () {
-      _this._clientID = null;
       _this._stores = null;
       _this._refetching = null;
-      _this._actions = null;
       _this._injected = null;
       _this._prefetched = null;
     });
-
-    this.sendToServer(new Client.Event.Open({ clientID: clientID }));
   }
 
   _prototypeProperties(Client, null, {
@@ -98,12 +87,6 @@ var Client = (function () {
         throw new TypeError("Virtual method invocation");
       },
       writable: true,
-      configurable: true
-    },
-    clientHash: {
-      get: function () {
-        return this._clientHash;
-      },
       configurable: true
     },
     isPrefetching: {
@@ -233,91 +216,73 @@ var Client = (function () {
       writable: true,
       configurable: true
     },
-    Store: {
-      value: (function (_Store) {
-        var _StoreWrapper = function Store() {
-          return _Store.apply(this, arguments);
-        };
-
-        _StoreWrapper.toString = function () {
-          return _Store.toString();
-        };
-
-        return _StoreWrapper;
-      })(function (path, lifespan) {
+    findOrCreateStore: {
+      value: function findOrCreateStore(path) {
+        if (__DEV__) {
+          path.should.be.a.String;
+        }
+        if (this._stores[path] === void 0) {
+          this.sendToServer(new Client.Event.Subscribe({ path: path }));
+          var engine = new Store.Engine(this.isInjecting ? this.getInjected(path) : void 0);
+          this._stores[path] = {
+            engine: engine,
+            producer: engine.createProducer(),
+            patches: {}, // initially we have no pending patches and we are not refetching
+            refetching: false };
+          this._refetch(path, null);
+        }
+        return this._stores[path];
+      },
+      writable: true,
+      configurable: true
+    },
+    deleteStore: {
+      value: function deleteStore(path) {
+        if (__DEV__) {
+          path.should.be.a.String;
+          this._stores.should.have.property(path);
+          this._stores[path].consumers.should.be.exactly(0);
+        }
+        this._stores[path].producer.lifespan.release();
+        this._stores[path].engine.lifespan.release();
+        this.sendToServer(new Client.Event.Unsubscribe({ path: path }));
+        delete this._stores[path];
+      },
+      writable: true,
+      configurable: true
+    },
+    getStore: {
+      value: function getStore(path, lifespan) {
         var _this = this;
         // returns a Store consumer
         if (__DEV__) {
           path.should.be.a.String;
           lifespan.should.be.an.instanceOf(Lifespan);
         }
-        var _ref = this._stores[path] || (function () {
-          // if we don't know this store yet, then subscribe
-          _this.sendToServer(new Client.Event.Subscribe({ path: path }));
-          var engine = new Store.Engine(_this.isInjecting ? _this.getInjected(path) : void 0);
-          _this._stores[path] = {
-            engine: engine,
-            producer: engine.createProducer(),
-            patches: {}, // initially we have no pending patches and we are not refetching
-            refetching: false };
-          _this._refetch(path, null);
-          return _this._stores[path];
-        })();
-        var engine = _ref.engine;
+        var _findOrCreateStore = this.findOrCreateStore(path);
+
+        var engine = _findOrCreateStore.engine;
         var consumer = engine.createConsumer();
         consumer.lifespan.onRelease(function () {
           if (engine.consumers === 0) {
-            _this._stores[path].producer.lifespan.release();
-            engine.lifespan.release();
-            _this.sendToServer(new Client.Event.Unsubscribe({ path: path }));
-            delete _this._stores[path];
+            _this.deleteStore(path);
           }
         });
         lifespan.onRelease(consumer.lifespan.release);
         return consumer;
-      }),
+      },
       writable: true,
       configurable: true
     },
-    Action: {
-      value: (function (_Action) {
-        var _ActionWrapper = function Action() {
-          return _Action.apply(this, arguments);
-        };
-
-        _ActionWrapper.toString = function () {
-          return _Action.toString();
-        };
-
-        return _ActionWrapper;
-      })(function (path, lifespan) {
-        var _this = this;
-        // returns an Action producer
+    dispatchAction: {
+      value: function dispatchAction(path) {
+        var params = arguments[1] === undefined ? {} : arguments[1];
         if (__DEV__) {
           path.should.be.a.String;
-          lifespan.should.be.an.instanceOf(Lifespan);
+          params.should.be.an.Object;
         }
-        var _ref = this._actions[path] || (function () {
-          // if we don't know this action yet, start observing it
-          var engine = new Action.Engine();
-          return _this._actions[path] = {
-            engine: engine,
-            consumer: engine.createConsumer().onDispatch(function (params) {
-              return _this.sendToServer(new Client.Event.Dispatch({ path: path, params: params }));
-            }) };
-        })();
-        var engine = _ref.engine;
-        var producer = engine.createProducer();
-        producer.lifespan.onRelease(function () {
-          if (engine.producers === 0) {
-            _this._actions[path].consumer.lifespan.release();
-            engine.lifespan.release();
-            delete _this._actions[path];
-          }
-        });
-        lifespan.onRelease(producer.lifespan.release);
-        return producer;
-      }),
+        this.sendToServer(new Client.Event.Action({ path: path, params: params }));
+      },
       writable: true,
       configurable: true
     },
@@ -331,9 +296,10 @@ var Client = (function () {
           // dismiss if we are not interested anymore
           return;
         }
-        var producer = this._stores[path].producer;
-        var patches = this._stores[path].patches;
-        var refetching = this._stores[path].refetching;
+        var _stores$path = this._stores[path];
+        var producer = _stores$path.producer;
+        var patches = _stores$path.patches;
+        var refetching = _stores$path.refetching;
         var hash = producer.hash;
         var source = patch.source;
         var target = patch.target;
@@ -399,9 +365,10 @@ var Client = (function () {
           // not interested anymore
           return;
         }
-        var engine = this._stores[path].engine;
-        var producer = this._stores[path].producer;
-        var patches = this._stores[path].patches;
+        var _stores$path = this._stores[path];
+        var engine = _stores$path.engine;
+        var producer = _stores$path.producer;
+        var patches = _stores$path.patches;
         var prev = engine.remutable;
         if (prev.version >= next.version) {
           // we already have a more recent version

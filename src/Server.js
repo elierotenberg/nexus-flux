@@ -1,9 +1,7 @@
 import Remutable from 'remutable';
 import Lifespan from 'lifespan';
-import EventEmitter from 'nexus-events';
+import { EventEmitter } from 'nexus-events';
 
-import Store from './Store';
-import Action from './Action';
 import Client from './Client.Event'; // we just need this reference for typechecks
 import { Event } from './Server.Event';
 
@@ -19,7 +17,6 @@ class Link {
       this.sendToClient.should.not.be.exactly(Link.prototype.sendToClient); // ensure virtual
     }
     this.lifespan = new Lifespan();
-    _.bindAll(this);
     this.receiveFromClient = null; // will be set by the server; should be called when received client events, to forward them to the server
     this.lifespan.onRelease(() => {
       this.receiveFromClient = null;
@@ -50,10 +47,11 @@ class Link {
     this.sendToClient(ev);
   }
 }
+
 class Server extends EventEmitter {
   constructor() {
+    super();
     this.lifespan = new Lifespan();
-    _.bindAll(this);
     this._links = {};
     this._subscriptions = {};
     this.lifespan.onRelease(() => {
@@ -66,13 +64,13 @@ class Server extends EventEmitter {
     });
   }
 
-  dispatchAction(path, payload) {
+  dispatchAction(path, params) {
     return Promise.try(() => {
       if(__DEV__) {
         path.should.be.a.String;
-        payload.should.be.an.Object;
+        params.should.be.an.Object;
       }
-      this.emit('action', { path, payload });
+      this.emit('action', { path, params });
     });
   }
 
@@ -83,7 +81,9 @@ class Server extends EventEmitter {
     }
     if(this._subscriptions[path] !== void 0) {
       const ev = new Server.Event.Update({ path, patch });
-      _.each(this._subscriptions[path], (link) => link.receiveFromServer(ev));
+      _.each(this._subscriptions[path], (link) => {
+        link.receiveFromServer(ev);
+      });
     }
     return this;
   }
@@ -94,11 +94,11 @@ class Server extends EventEmitter {
       path.should.be.a.String;
       this._links.should.have.property(linkID);
     }
-    if(!this._subscriptions[path]) {
+    if(this._subscriptions[path] === void 0) {
       this._subscriptions[path] = {};
     }
-    this._subscriptions[path][linkID] = linkID;
-    if(!this._links[linkID].subscriptions[path]) {
+    this._subscriptions[path][linkID] = this._links[linkID].link;
+    if(this._links[linkID].subscriptions[path] === void 0) {
       this._links[linkID].subscriptions[path] = path;
     }
     return this;
@@ -132,6 +132,7 @@ class Server extends EventEmitter {
     };
     link.acceptFromServer((ev) => this.receiveFromLink(linkID, ev));
     link.lifespan.onRelease(() => {
+      _.each(this._links[linkID].subscriptions, (path) => this.unsubscribe(linkID, path));
       delete this._links[linkID];
     });
   }
