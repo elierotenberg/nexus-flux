@@ -34,42 +34,6 @@ class Event {
   }
 }
 
-class Open extends Event {
-  constructor({ clientID }) {
-    if(__DEV__) {
-      clientID.should.be.a.String;
-    }
-    super();
-    Object.assign(this, { clientID });
-  }
-
-  _toJS() {
-    return { c: this.clientID };
-  }
-
-  static t() {
-    return 'o';
-  }
-
-  static fromJS({ c }) {
-    return new Open({ clientID: c });
-  }
-}
-
-class Close extends Event {
-  _toJS() {
-    return {};
-  }
-
-  static t() {
-    return 'c';
-  }
-
-  static fromJS() {
-    return new Close();
-  }
-}
-
 class Subscribe extends Event {
   constructor({ path }) {
     if(__DEV__) {
@@ -114,7 +78,7 @@ class Unsubscribe extends Event {
   }
 }
 
-class Dispatch extends Event {
+class Action extends Event {
   constructor({ path, params }) {
     if(__DEV__) {
       path.should.be.a.String;
@@ -133,15 +97,13 @@ class Dispatch extends Event {
   }
 
   static fromJS({ p, a }) {
-    return new Dispatch({ path: p, params: a });
+    return new Action({ path: p, params: a });
   }
 }
 
 Event._ = {};
-Event.Open        = Event._[Open.t()]         = Open;
-Event.Close       = Event._[Close.t()]        = Close;
 Event.Subscribe   = Event._[Subscribe.t()]    = Subscribe;
 Event.Unsubscribe = Event._[Unsubscribe.t()]  = Unsubscribe;
-Event.Dispatch    = Event._[Dispatch.t()]     = Dispatch;
+Event.Action      = Event._[Action.t()]       = Action;
 
 export default { Event };

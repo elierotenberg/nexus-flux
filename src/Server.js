@@ -1,7 +1,6 @@
 import Remutable from 'remutable';
 import Lifespan from 'lifespan';
-import hashClientID from './hashClientID';
-import { EventEmitter } from 'nexus-events';
+import EventEmitter from 'nexus-events';
 
 import Store from './Store';
 import Action from './Action';
@@ -51,33 +50,74 @@ class Link {
     this.sendToClient(ev);
   }
 }
-
-/**
- * @abstract
- */
 class Server extends EventEmitter {
   constructor() {
-    if(__DEV__) {
-      this.constructor.should.not.be.exactly(Server); // ensure abstracts
-      this.publish.should.not.be.exactly(Server.prototype.publish); // ensure virtual
-    }
-    super();
     this.lifespan = new Lifespan();
     _.bindAll(this);
-    this._stores = {};
-    this._actions = {};
     this._links = {};
+    this._subscriptions = {};
+    this.lifespan.onRelease(() => {
+      _.each(this._links, ({ link, subscriptions }, linkID) => {
+        _.each(subscriptions, (path) => this.unsubscribe(linkID, path));
+        link.lifespan.release();
+      });
+      this._links = null;
+      this._subscriptions = null;
+    });
   }
 
-  /**
-   * @virtual
-   */
-  publish(path, remutableConsumer) {
+  dispatchAction(path, payload) {
+    return Promise.try(() => {
+      if(__DEV__) {
+        path.should.be.a.String;
+        payload.should.be.an.Object;
+      }
+      this.emit('action', { path, payload });
+    });
+  }
+
+  dispatchUpdate(path, patch) {
     if(__DEV__) {
       path.should.be.a.String;
-      remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
+      patch.should.be.an.instanceOf(Remutable.Patch);
     }
-    throw new TypeError('Virtual method invocation');
+    if(this._subscriptions[path] !== void 0) {
+      const ev = new Server.Event.Update({ path, patch });
+      _.each(this._subscriptions[path], (link) => link.receiveFromServer(ev));
+    }
+    return this;
+  }
+
+  subscribe(linkID, path) {
+    if(__DEV__) {
+      linkID.should.be.a.String;
+      path.should.be.a.String;
+      this._links.should.have.property(linkID);
+    }
+    if(!this._subscriptions[path]) {
+      this._subscriptions[path] = {};
+    }
+    this._subscriptions[path][linkID] = linkID;
+    if(!this._links[linkID].subscriptions[path]) {
+      this._links[linkID].subscriptions[path] = path;
+    }
+    return this;
+  }
+
+  unsubscribe(linkID, path) {
+    if(__DEV__) {
+      linkID.should.be.a.String;
+      path.should.be.a.String;
+      this._links.should.have.property(linkID);
+      this._links[linkID].subscriptions.should.have.property(path);
+      this._subscriptions.should.have.property(path);
+      this._subscriptions[path].should.have.property(linkID);
+    }
+    delete this._links[linkID].subscriptions[path];
+    delete this._subscriptions[path][linkID];
+    if(_.size(this._subscriptions[path]) === 0) {
+      delete this._subscriptions[path];
+    }
   }
 
   acceptLink(link) {
@@ -89,14 +129,11 @@ class Server extends EventEmitter {
     this._links[linkID] = {
       link,
       subscriptions: {},
-      clientID: null,
     };
     link.acceptFromServer((ev) => this.receiveFromLink(linkID, ev));
     link.lifespan.onRelease(() => {
-      this.emit('link:remove', { linkID });
       delete this._links[linkID];
     });
-    this.emit('link:add', { linkID });
   }
 
   receiveFromLink(linkID, ev) {
@@ -105,109 +142,23 @@ class Server extends EventEmitter {
       this._links.should.have.property(linkID);
       ev.should.be.an.instanceOf(Client.Event);
     }
-    if(ev instanceof Client.Event.Open) {
-      return this._links[linkID].clientID = ev.clientID;
-    }
-    if(ev instanceof Client.Event.Close) {
-      return this._links[linkID].clientID = null;
-    }
     if(ev instanceof Client.Event.Subscribe) {
-      return this._links[linkID].subscriptions[ev.path] = null;
+      return this.subscribe(linkID, ev.path);
     }
     if(ev instanceof Client.Event.Unsubscribe) {
-      if(this._links[linkID].subscriptions[ev.path] !== void 0) {
-        delete this._links[linkID].subscriptions[ev.path];
-        return;
-      }
-      return;
+      return this.unsubscribe(linkID, ev.path);
     }
-    if(ev instanceof Client.Event.Dispatch) {
-      if(this._links[linkID].clientID !== null && this._actions[ev.path] !== void 0) {
-        // hash clientID. the action handlers shouldn't have access to it. (security issue)
-        return this._actions[ev.path].producer.dispatch(ev.params, hashClientID(this._links[linkID].clientID));
-      }
-      return;
+    if(ev instanceof Client.Event.Action) {
+      return this.dispatchAction(ev.path, ev.params);
     }
     if(__DEV__) {
       throw new TypeError(`Unknown Client.Event: ${ev}`);
     }
   }
-
-  sendToLinks(ev) {
-    if(__DEV__) {
-      ev.should.be.an.instanceOf(Server.Event);
-    }
-    if(ev instanceof Server.Event.Update || ev instanceof Server.Event.Delete) {
-      return _.each(this._links, ({ link, subscriptions }) => {
-        if(subscriptions[ev.path] !== void 0) {
-          link.receiveFromServer(ev);
-        }
-      });
-    }
-    if(__DEV__) {
-      throw new TypeError(`Unknown Server.Event type: ${ev}`);
-    }
-  }
-
-  Store(path, lifespan) {
-    if(__DEV__) {
-      path.should.be.a.String;
-      lifespan.should.be.an.instanceOf(Lifespan);
-    }
-
-    const { engine } = this._stores[path] || (() => {
-      const engine = new Store.Engine();
-      const consumer = engine.createConsumer()
-      .onUpdate((consumer, patch) => {
-        this.publish(path, consumer);
-        this.sendToLinks(new Server.Event.Update({ path, patch }));
-      })
-      .onDelete(() => this.sendToLinks(new Server.Event.Delete({ path })));
-      // immediatly publish the (empty) store
-      this.publish(path, engine.remutableConsumer);
-      return this._stores[path] = { engine, consumer };
-    })();
-    const producer = engine.createProducer();
-    producer.lifespan.onRelease(() => {
-      if(engine.producers === 0) {
-        this._stores[path].consumer.release();
-        engine.lifespan.release();
-        delete this._stores[path];
-      }
-    });
-    lifespan.onRelease(producer.lifespan.release);
-    return producer;
-  }
-
-  Action(path, lifespan) {
-    if(__DEV__) {
-      path.should.be.a.String;
-      lifespan.should.be.an.instanceOf(Lifespan);
-    }
-
-    const { engine } = this._actions[path] || (() => {
-      const engine = new Action.Engine();
-      const producer = engine.createProducer();
-      return this._actions[path] = {
-        engine,
-        producer,
-      };
-    })();
-    const consumer = engine.createConsumer();
-    consumer.lifespan.onRelease(() => {
-      if(engine.consumers === 0) {
-        this._actions[path].producer.release();
-        engine.lifespan.release();
-        delete this._actions[path];
-      }
-    });
-    lifespan.onRelease(consumer.lifespan.release);
-    return consumer;
-  }
 }
 
 _Server = Server;
 
-Object.assign(Server, { Event, Link, hashClientID });
+Object.assign(Server, { Event, Link });
 
 export default Server;

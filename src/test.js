@@ -1,5 +1,8 @@
 import Lifespan from 'lifespan';
+import Remutable from 'remutable';
 import { Client, Server } from './adapters/Local';
+
+const public = {};
 
 const server = new Server();
 const client = new Client(server);
@@ -8,6 +11,7 @@ server.lifespan.onRelease(() => console.log('server released'));
 client.lifespan.onRelease(() => console.log('client released'));
 
 _.defer(() => { // server main
+  const clock = public['/clock'] = new Remutable();
   const clock = server.Store('/clock', server.lifespan); // create a new store, initally empty ({})
   clock.set('date', Date.now()).commit(); // initialize it with a single field, date, and commit it immediatly
   const todoList = server.Store('/todoList', server.lifespan); // create another store, initially empty({})

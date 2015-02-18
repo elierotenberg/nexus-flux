@@ -2,8 +2,6 @@ import Immutable from 'immutable';
 import Remutable from 'remutable';
 const { Patch } = Remutable;
 import Lifespan from 'lifespan';
-
-import hashClientID from './hashClientID';
 import Store from './Store';
 import Action from './Action';
 import Server from './Server.Event'; // we just need this reference for typechecks
@@ -15,31 +13,23 @@ const INT_MAX = 9007199254740992;
  * @abstract
  */
 class Client {
-  constructor(clientID = _.uniqueId(`Client${_.random(1, INT_MAX - 1)}`)) {
+  constructor() {
     if(__DEV__) {
-      clientID.should.be.a.String;
       this.constructor.should.not.be.exactly(Client); // ensure abstract
       this.fetch.should.not.be.exactly(Client.prototype.fetch); // ensure virtual
       this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer); // ensure virtual
     }
     this.lifespan = new Lifespan();
-    this._clientID = clientID;
-    this._clientHash = hashClientID(clientID);
     this._stores = {};
     this._refetching = {};
-    this._actions = {};
     this._injected = null;
     this._prefetched = null;
     this.lifespan.onRelease(() => {
-      this._clientID = null;
       this._stores = null;
       this._refetching = null;
-      this._actions = null;
       this._injected = null;
       this._prefetched = null;
     });
-
-    this.sendToServer(new Client.Event.Open({ clientID }));
   }
 
   /**
@@ -61,10 +51,6 @@ class Client {
       ev.should.be.an.instanceOf(Client.Event);
     }
     throw new TypeError('Virtual method invocation');
-  }
-
-  get clientHash() {
-    return this._clientHash;
   }
 
   get isPrefetching() {
@@ -156,12 +142,11 @@ class Client {
     throw new TypeError(`Unknown event: ${ev}`);
   }
 
-  Store(path, lifespan) { // returns a Store consumer
+  findOrCreateStore(path) {
     if(__DEV__) {
       path.should.be.a.String;
-      lifespan.should.be.an.instanceOf(Lifespan);
     }
-    const { engine } = this._stores[path] || (() => { // if we don't know this store yet, then subscribe
+    if(this._stores[path] === void 0) {
       this.sendToServer(new Client.Event.Subscribe({ path }));
       const engine = new Store.Engine(this.isInjecting ? this.getInjected(path) : void 0);
       this._stores[path] = {
@@ -171,44 +156,44 @@ class Client {
         refetching: false,
       };
       this._refetch(path, null);
-      return this._stores[path];
-    })();
+    }
+    return this._stores[path];
+  }
+
+  deleteStore(path) {
+    if(__DEV__) {
+      path.should.be.a.String;
+      this._stores.should.have.property(path);
+      this._stores[path].consumers.should.be.exactly(0);
+    }
+    this._stores[path].producer.lifespan.release();
+    this._stores[path].engine.lifespan.release();
+    this.sendToServer(new Client.Event.Unsubscribe({ path }));
+    delete this._stores[path];
+  }
+
+  getStore(path, lifespan) { // returns a Store consumer
+    if(__DEV__) {
+      path.should.be.a.String;
+      lifespan.should.be.an.instanceOf(Lifespan);
+    }
+    const { engine } = this.findOrCreateStore(path);
     const consumer = engine.createConsumer();
     consumer.lifespan.onRelease(() => {
       if(engine.consumers === 0) {
-        this._stores[path].producer.lifespan.release();
-        engine.lifespan.release();
-        this.sendToServer(new Client.Event.Unsubscribe({ path }));
-        delete this._stores[path];
+        this.deleteStore(path);
       }
     });
     lifespan.onRelease(consumer.lifespan.release);
     return consumer;
   }
 
-  Action(path, lifespan) { // returns an Action producer
+  dispatchAction(path, params = {}) {
     if(__DEV__) {
       path.should.be.a.String;
-      lifespan.should.be.an.instanceOf(Lifespan);
+      payload.should.be.an.Object;
     }
-    const { engine } = this._actions[path] || (() => { // if we don't know this action yet, start observing it
-      const engine = new Action.Engine();
-      return this._actions[path] = {
-        engine,
-        consumer: engine.createConsumer()
-        .onDispatch((params) => this.sendToServer(new Client.Event.Dispatch({ path, params }))),
-      };
-    })();
-    const producer = engine.createProducer();
-    producer.lifespan.onRelease(() => {
-      if(engine.producers === 0) {
-        this._actions[path].consumer.lifespan.release();
-        engine.lifespan.release();
-        delete this._actions[path];
-      }
-    });
-    lifespan.onRelease(producer.lifespan.release);
-    return producer;
+    this.sendToServer(new Client.Event.Dispatch({ path, param }));
   }
 
   _update(path, patch) {

@@ -5,14 +5,14 @@ const { Link } = Server;
 let _LocalServer, _LocalLink;
 
 class LocalClient extends Client {
-  constructor(server, clientID) {
+  constructor(server) {
     if(__DEV__) {
       server.should.be.an.instanceOf(_LocalServer);
     }
     this._server = server;
     this._link = new _LocalLink(this);
     this._server.acceptLink(this._link);
-    super(clientID);
+    super();
     this.lifespan.onRelease(() => {
       this._link.lifespan.release();
       this._link = null;
@@ -52,18 +52,13 @@ class LocalLink extends Link {
 _LocalLink = LocalLink;
 
 class LocalServer extends Server {
-  constructor() {
-    super();
-    this.public = {};
-    this.lifespan.onRelease(() => this.public = null);
-  }
-
-  publish(path, remutableConsumer) {
+  constructor(public = {}) {
     if(__DEV__) {
-      path.should.be.a.String;
-      remutableConsumer.should.be.an.instanceOf(Remutable.Consumer);
+      public.should.be.an.Object;
     }
-    this.public[path] = remutableConsumer;
+    super();
+    this.public = public;
+    this.lifespan.onRelease(() => this.public = null);
   }
 }
 
