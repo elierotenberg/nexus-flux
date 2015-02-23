@@ -30,15 +30,15 @@
   },
   "dependencies": {
     "asap": "^2.0.1",
-    "babel": "^4.3.0",
-    "bluebird": "^2.9.9",
+    "babel": "^4.4.5",
+    "bluebird": "^2.9.12",
     "gulp-util": "^3.0.3",
     "immutable": "^3.6.2",
     "jshint-stylish": "^1.0.0",
     "lifespan": "^2.9.0",
-    "lodash": "^3.2.0",
+    "lodash": "^3.3.0",
     "nexus-events": "^1.1.2",
     "remutable": "^0.23.0",
-    "should": "^5.0.0"
+    "should": "^5.0.1"
   }
 }
