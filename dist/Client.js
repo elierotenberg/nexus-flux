@@ -18,11 +18,13 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
+
 var Immutable = _interopRequire(require("immutable"));
 
 var Remutable = _interopRequire(require("remutable"));
 
 var Patch = Remutable.Patch;
+
 var Lifespan = _interopRequire(require("lifespan"));
 
 var Store = _interopRequire(require("./Store"));
@@ -30,15 +32,17 @@ var Store = _interopRequire(require("./Store"));
 var Server = _interopRequire(require("./Server.Event"));
 
 // we just need this reference for typechecks
-var Event = require("./Client.Event").Event;
 
+var Event = require("./Client.Event").Event;
 
 /**
  * @abstract
  */
+
 var Client = (function () {
   function Client() {
     var _this = this;
+
     _classCallCheck(this, Client);
 
     if (__DEV__) {
@@ -65,6 +69,7 @@ var Client = (function () {
       /**
        * @virtual
        */
+
       value: function fetch(path, hash) {
         if (__DEV__) {
           path.should.be.a.String;
@@ -80,6 +85,7 @@ var Client = (function () {
       /**
        * @virtual
        */
+
       value: function sendToServer(ev) {
         if (__DEV__) {
           ev.should.be.an.instanceOf(Client.Event);
@@ -135,6 +141,7 @@ var Client = (function () {
     prefetch: {
       value: function prefetch(path) {
         var _this = this;
+
         if (__DEV__) {
           path.should.be.a.String;
           this.isPrefetching.should.be["true"];
@@ -254,14 +261,17 @@ var Client = (function () {
     getStore: {
       value: function getStore(path, lifespan) {
         var _this = this;
+
         // returns a Store consumer
         if (__DEV__) {
           path.should.be.a.String;
           lifespan.should.be.an.instanceOf(Lifespan);
         }
+
         var _findOrCreateStore = this.findOrCreateStore(path);
 
         var engine = _findOrCreateStore.engine;
+
         var consumer = engine.createConsumer();
         consumer.lifespan.onRelease(function () {
           if (engine.consumers === 0) {
@@ -277,6 +287,7 @@ var Client = (function () {
     dispatchAction: {
       value: function dispatchAction(path) {
         var params = arguments[1] === undefined ? {} : arguments[1];
+
         if (__DEV__) {
           path.should.be.a.String;
           params.should.be.an.Object;
@@ -303,6 +314,7 @@ var Client = (function () {
         var hash = producer.hash;
         var source = patch.source;
         var target = patch.target;
+
         if (hash === source) {
           // if the patch applies to our current version, apply it now
           return producer.apply(patch);
@@ -325,6 +337,7 @@ var Client = (function () {
           return;
         }
         var producer = this._stores[path].producer;
+
         producer["delete"]();
       },
       writable: true,
@@ -333,6 +346,7 @@ var Client = (function () {
     _refetch: {
       value: function _refetch(path, hash) {
         var _this = this;
+
         if (__DEV__) {
           path.should.be.a.String;
           (hash === null || _.isNumber(hash)).should.be["true"];
@@ -369,6 +383,7 @@ var Client = (function () {
         var engine = _stores$path.engine;
         var producer = _stores$path.producer;
         var patches = _stores$path.patches;
+
         var prev = engine.remutable;
         if (prev.version >= next.version) {
           // we already have a more recent version
@@ -383,6 +398,7 @@ var Client = (function () {
         // clean old patches
         _.each(patches, function (_ref, source) {
           var to = _ref.to;
+
           if (to.v <= version) {
             delete patches[source];
           }

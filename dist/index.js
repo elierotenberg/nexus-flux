@@ -14,6 +14,7 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
+
 var Client = _interopRequire(require("./Client"));
 
 var Lifespan = _interopRequire(require("lifespan"));

@@ -14,6 +14,7 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
+
 var Lifespan = _interopRequire(require("lifespan"));
 
 var Remutable = _interopRequire(require("remutable"));
@@ -22,6 +23,7 @@ var _adaptersLocal = require("./adapters/Local");
 
 var Client = _adaptersLocal.Client;
 var Server = _adaptersLocal.Server;
+
 var hash = _interopRequire(require("sha256"));
 
 var stores = {};
@@ -52,6 +54,7 @@ _.defer(function () {
       var name = _ref.name;
       var description = _ref.description;
       var ownerKey = _ref.ownerKey;
+
       var item = { name: name, description: description, ownerHash: hash(ownerKey) };
       if (todoList.get(name) !== void 0) {
         return;
@@ -61,11 +64,13 @@ _.defer(function () {
     "/removeItem": function (_ref) {
       var name = _ref.name;
       var ownerKey = _ref.ownerKey;
+
       var item = todoList.get(name);
       if (item === void 0) {
         return;
       }
       var ownerHash = item.ownerHash;
+
       if (hash(ownerKey) !== ownerHash) {
         return;
       }
@@ -75,6 +80,7 @@ _.defer(function () {
   server.on("action", function (_ref) {
     var path = _ref.path;
     var params = _ref.params;
+
     if (actions[path] !== void 0) {
       actions[path](params);
     }

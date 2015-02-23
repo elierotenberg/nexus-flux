@@ -20,7 +20,9 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
+
 var Patch = require("remutable").Patch;
+
 var Event = (function () {
   function Event() {
     _classCallCheck(this, Event);
@@ -42,6 +44,7 @@ var Event = (function () {
 
         var t = _JSON$parse.t;
         var j = _JSON$parse.j;
+
         return Event._[t].fromJS(j);
       },
       writable: true,
@@ -79,6 +82,7 @@ var Update = (function (Event) {
   function Update(_ref) {
     var path = _ref.path;
     var patch = _ref.patch;
+
     _classCallCheck(this, Update);
 
     if (__DEV__) {
@@ -103,6 +107,7 @@ var Update = (function (Event) {
       value: function fromJS(_ref) {
         var p = _ref.p;
         var u = _ref.u;
+
         if (__DEV__) {
           p.should.be.a.String;
           u.should.be.an.Object;
@@ -130,6 +135,7 @@ var Update = (function (Event) {
 var Delete = (function (Event) {
   function Delete(_ref) {
     var path = _ref.path;
+
     _classCallCheck(this, Delete);
 
     if (__DEV__) {
@@ -152,6 +158,7 @@ var Delete = (function (Event) {
     fromJS: {
       value: function fromJS(_ref) {
         var p = _ref.p;
+
         if (__DEV__) {
           p.should.be.a.String;
         }

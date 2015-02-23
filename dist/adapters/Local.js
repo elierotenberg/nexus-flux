@@ -20,12 +20,12 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
+
 var _2 = require("../");
 
 var Client = _2.Client;
 var Server = _2.Server;
 var Link = Server.Link;
-
 
 var _LocalServer = undefined,
     _LocalLink = undefined;
@@ -33,6 +33,7 @@ var _LocalServer = undefined,
 var LocalClient = (function (Client) {
   function LocalClient(server) {
     var _this = this;
+
     _classCallCheck(this, LocalClient);
 
     if (__DEV__) {
@@ -61,6 +62,7 @@ var LocalClient = (function (Client) {
     fetch: {
       value: function fetch(path) {
         var _this = this;
+
         // just ignore hash
         return Promise["try"](function () {
           // fail if there is not such published path
@@ -79,6 +81,7 @@ var LocalClient = (function (Client) {
 var LocalLink = (function (Link) {
   function LocalLink(client) {
     var _this = this;
+
     _classCallCheck(this, LocalLink);
 
     if (__DEV__) {
@@ -112,7 +115,9 @@ _LocalLink = LocalLink;
 var LocalServer = (function (Server) {
   function LocalServer() {
     var _this = this;
+
     var stores = arguments[0] === undefined ? {} : arguments[0];
+
     _classCallCheck(this, LocalServer);
 
     if (__DEV__) {

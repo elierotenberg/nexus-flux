@@ -22,25 +22,29 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
+
 var Remutable = _interopRequire(require("remutable"));
 
 var Lifespan = _interopRequire(require("lifespan"));
 
 var EventEmitter = require("nexus-events").EventEmitter;
+
 var Client = _interopRequire(require("./Client.Event"));
 
 // we just need this reference for typechecks
-var Event = require("./Server.Event").Event;
 
+var Event = require("./Server.Event").Event;
 
 var _Server = undefined;
 
 /**
  * @abstract
  */
+
 var Link = (function () {
   function Link() {
     var _this = this;
+
     _classCallCheck(this, Link);
 
     if (__DEV__) {
@@ -60,6 +64,7 @@ var Link = (function () {
       /**
        * @virtual
        */
+
       value: function sendToClient(ev) {
         // should forward the event to the associated client
         if (__DEV__) {
@@ -100,6 +105,7 @@ var Link = (function () {
 var Server = (function (EventEmitter) {
   function Server() {
     var _this = this;
+
     _classCallCheck(this, Server);
 
     _get(Object.getPrototypeOf(Server.prototype), "constructor", this).call(this);
@@ -110,6 +116,7 @@ var Server = (function (EventEmitter) {
       _.each(_this._links, function (_ref, linkID) {
         var link = _ref.link;
         var subscriptions = _ref.subscriptions;
+
         _.each(subscriptions, function (path) {
           return _this.unsubscribe(linkID, path);
         });
@@ -126,6 +133,7 @@ var Server = (function (EventEmitter) {
     dispatchAction: {
       value: function dispatchAction(path, params) {
         var _this = this;
+
         return Promise["try"](function () {
           if (__DEV__) {
             path.should.be.a.String;
@@ -140,6 +148,7 @@ var Server = (function (EventEmitter) {
     dispatchUpdate: {
       value: function dispatchUpdate(path, patch) {
         var _this = this;
+
         if (__DEV__) {
           path.should.be.a.String;
           patch.should.be.an.instanceOf(Remutable.Patch);
@@ -198,6 +207,7 @@ var Server = (function (EventEmitter) {
     acceptLink: {
       value: function acceptLink(link) {
         var _this = this;
+
         if (__DEV__) {
           link.should.be.an.instanceOf(Link);
         }

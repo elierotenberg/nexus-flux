@@ -22,15 +22,16 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
+
 var asap = _interopRequire(require("asap"));
 
 var EventEmitter = require("nexus-events").EventEmitter;
+
 var Lifespan = _interopRequire(require("lifespan"));
 
 var Remutable = _interopRequire(require("remutable"));
 
 var Patch = Remutable.Patch;
-
 
 var EVENTS = { UPDATE: "c", DELETE: "d" };
 
@@ -39,6 +40,7 @@ var _Engine = undefined;
 var Producer = (function () {
   function Producer(engine) {
     var _this = this;
+
     _classCallCheck(this, Producer);
 
     if (__DEV__) {
@@ -104,6 +106,7 @@ var Producer = (function () {
 var Consumer = (function () {
   function Consumer(engine) {
     var _this = this;
+
     _classCallCheck(this, Consumer);
 
     if (__DEV__) {
@@ -172,7 +175,9 @@ var Consumer = (function () {
 var Engine = (function (EventEmitter) {
   function Engine() {
     var _this = this;
+
     var data = arguments[0] === undefined ? {} : arguments[0];
+
     _classCallCheck(this, Engine);
 
     _get(Object.getPrototypeOf(Engine.prototype), "constructor", this).call(this);
@@ -200,6 +205,7 @@ var Engine = (function (EventEmitter) {
     createProducer: {
       value: function createProducer() {
         var _this = this;
+
         var producer = new Producer(this);
         this.producers = this.producers + 1;
         producer.lifespan.onRelease(function () {
@@ -213,6 +219,7 @@ var Engine = (function (EventEmitter) {
     createConsumer: {
       value: function createConsumer() {
         var _this = this;
+
         var consumer = new Consumer(this);
         this.consumers = this.consumers + 1;
         consumer.lifespan.onRelease(function () {

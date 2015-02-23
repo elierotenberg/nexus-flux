@@ -24,11 +24,13 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
+
 var _2 = require("../");
 
 var Client = _2.Client;
 var Server = _2.Server;
 var Link = Server.Link;
+
 var Remutable = _interopRequire(require("remutable"));
 
 // constants for the communication 'protocol'/convention
@@ -44,10 +46,13 @@ var EVENT = "e";
 var DEFAULT_SALT = "__KqsrQBNHfkTYQ8mWadEDwfKM";
 
 /* jshint browser:true */
+
 var WorkerClient = (function (Client) {
   function WorkerClient(worker) {
     var _this = this;
+
     var salt = arguments[1] === undefined ? DEFAULT_SALT : arguments[1];
+
     _classCallCheck(this, WorkerClient);
 
     if (__DEV__) {
@@ -74,6 +79,7 @@ var WorkerClient = (function (Client) {
     fetch: {
       value: function fetch(path, hash) {
         var _this = this;
+
         if (this._fetching[path] === void 0) {
           this._fetching[path] = {
             promise: null,
@@ -106,8 +112,10 @@ var WorkerClient = (function (Client) {
           var _message$_salt = message[this._salt];
           var t = _message$_salt.t;
           var j = _message$_salt.j;
+
           if (t === PUBLISH) {
             var path = j.path;
+
             if (__DEV__) {
               path.should.be.a.String;
             }
@@ -142,10 +150,13 @@ var WorkerClient = (function (Client) {
 /* jshint browser:false */
 
 /* jshint worker:true */
+
 var WorkerLink = (function (Link) {
   function WorkerLink(self, stores) {
     var _this = this;
+
     var salt = arguments[2] === undefined ? DEFAULT_SALT : arguments[2];
+
     _classCallCheck(this, WorkerLink);
 
     if (__DEV__) {
@@ -186,6 +197,7 @@ var WorkerLink = (function (Link) {
           var _message$_salt = message[this._salt];
           var t = _message$_salt.t;
           var j = _message$_salt.j;
+
           if (t === EVENT) {
             var ev = Client.Event.fromJS(j);
             if (__DEV__) {
@@ -196,6 +208,7 @@ var WorkerLink = (function (Link) {
           }
           if (t === FETCH) {
             var path = j.path;
+
             if (this.stores[path] === void 0) {
               return this._self.postMessage(_defineProperty({}, this._salt, { t: PUBLISH, j: null }));
             }
@@ -215,11 +228,14 @@ var WorkerLink = (function (Link) {
 /* jshint worker:false */
 
 /* jshint worker:true */
+
 var WorkerServer = (function (Server) {
   function WorkerServer() {
     var _this = this;
+
     var stores = arguments[0] === undefined ? {} : arguments[0];
     var salt = arguments[1] === undefined ? DEFAULT_SALT : arguments[1];
+
     _classCallCheck(this, WorkerServer);
 
     if (__DEV__) {

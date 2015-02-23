@@ -20,6 +20,7 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
+
 var Event = (function () {
   function Event() {
     _classCallCheck(this, Event);
@@ -41,6 +42,7 @@ var Event = (function () {
 
         var t = _JSON$parse.t;
         var j = _JSON$parse.j;
+
         return Event._[t].fromJS(j);
       },
       writable: true,
@@ -77,6 +79,7 @@ var Event = (function () {
 var Subscribe = (function (Event) {
   function Subscribe(_ref) {
     var path = _ref.path;
+
     _classCallCheck(this, Subscribe);
 
     if (__DEV__) {
@@ -99,6 +102,7 @@ var Subscribe = (function (Event) {
     fromJS: {
       value: function fromJS(_ref) {
         var p = _ref.p;
+
         return new Subscribe({ path: p });
       },
       writable: true,
@@ -120,6 +124,7 @@ var Subscribe = (function (Event) {
 var Unsubscribe = (function (Event) {
   function Unsubscribe(_ref) {
     var path = _ref.path;
+
     _classCallCheck(this, Unsubscribe);
 
     if (__DEV__) {
@@ -142,6 +147,7 @@ var Unsubscribe = (function (Event) {
     fromJS: {
       value: function fromJS(_ref) {
         var p = _ref.p;
+
         return new Unsubscribe({ path: p });
       },
       writable: true,
@@ -164,6 +170,7 @@ var Action = (function (Event) {
   function Action(_ref) {
     var path = _ref.path;
     var params = _ref.params;
+
     _classCallCheck(this, Action);
 
     if (__DEV__) {
@@ -188,6 +195,7 @@ var Action = (function (Event) {
       value: function fromJS(_ref) {
         var p = _ref.p;
         var a = _ref.a;
+
         return new Action({ path: p, params: a });
       },
       writable: true,
