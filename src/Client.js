@@ -58,6 +58,14 @@ class Client {
     if(__DEV__) {
       path.should.be.a.String;
       this.isPrefetching.should.be.true;
+    }
+    this.prefetch(path)
+    .catch((err) => {
+      if(__DEV__) {
+        throw err;
+      }
+    });
+    if(__DEV__) {
       this._prefetched.should.have.property(path);
       this._prefetched[path].promise.isPending().should.be.false;
     }
