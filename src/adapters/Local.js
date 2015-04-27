@@ -1,17 +1,18 @@
 import { Client, Server } from '../';
 const { Link } = Server;
 
-let _LocalServer, _LocalLink;
+let _LocalServer;
+let _LocalLink;
 
 class LocalClient extends Client {
   constructor(server) {
     if(__DEV__) {
       server.should.be.an.instanceOf(_LocalServer);
     }
+    super();
     this._server = server;
     this._link = new _LocalLink(this);
     this._server.acceptLink(this._link);
-    super();
     this.lifespan.onRelease(() => {
       this._link.lifespan.release();
       this._link = null;

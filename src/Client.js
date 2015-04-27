@@ -116,7 +116,7 @@ class Client {
       this.isInjecting.should.not.be.true;
       injected.should.be.an.Object;
     }
-    this._injected = _.mapValues(injected, (js) => Immutable.Map(js));
+    this._injected = _.mapValues(injected, (js) => new Immutable.Map(js));
   }
 
   stopInjecting() {
@@ -199,7 +199,7 @@ class Client {
       patch.should.be.an.instanceOf(Patch);
     }
     if(this._stores[path] === void 0) { // dismiss if we are not interested anymore
-      return;
+      return null;
     }
     const { producer, patches, refetching } = this._stores[path];
     const { hash } = producer;

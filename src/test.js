@@ -55,17 +55,21 @@ _.defer(() => { // server main
 _.defer(() => { // client main
   const ownerKey = hash(`${Date.now()}:${_.random()}`);
   client.getStore('/clock', client.lifespan) // subscribe to a store
-  .onUpdate(({ head }) => { // every time its updated (including when its first fetched), display the modified value (it is an Immutable.Map)
+  // every time its updated (including when its first fetched), display the modified value (it is an Immutable.Map)
+  .onUpdate(({ head }) => {
     console.log('clock tick', head.get('date'));
   })
   .onDelete(() => { // if its deleted, then do something appropriate
     console.log('clock deleted');
   });
 
-  const todoListLifespan = new Lifespan(); // this store subscribers has a limited lifespan (eg. a React components' own lifespan)
+  // this store subscribers has a limited lifespan (eg. a React components' own lifespan)
+  const todoListLifespan = new Lifespan();
   const todoList = client.getStore('/todoList', todoListLifespan)
-  .onUpdate(({ head }, patch) => { // when its updated, we can access not only the up-to-date head, but also the underlying patch object,
-    console.log('received todoList patch:', patch); // if we want to do something with it (we can just ignore it as above)
+  // when its updated, we can access not only the up-to-date head, but also the underlying patch object,
+  .onUpdate(({ head }, patch) => {
+    // if we want to do something with it (we can just ignore it as above)
+    console.log('received todoList patch:', patch);
     console.log('todoList head is now:', head.toJS());
   })
   .onDelete(() => {
@@ -75,10 +79,15 @@ _.defer(() => { // client main
   client.dispatchAction('/addItem', { name: 'Harder', description: 'Code harder', ownerKey }); // dispatch some actions
   client.dispatchAction('/addItem', { name: 'Better', description: 'Code better', ownerKey });
   client.lifespan
-  .setTimeout(() => client.dispatchAction('/addItem', { name: 'Faster', description: 'Code Faster', ownerKey }), 1000) // add a new item in 1000ms
-  .setTimeout(() => client.dispatchAction('/removeItem', { name: 'Harder', ownerKey }), 2000) // remove an item in 2000ms
-  .setTimeout(() => client.dispatchAction('/addItem', { name: 'Stronger', description: 'Code stronger', ownerKey }), 3000) // add an item in 3000ms
-  .setTimeout(() => todoList.value.forEach(({ description }, name) => { // remove every item in 4000
+  // add a new item in 1000ms
+  .setTimeout(() => client.dispatchAction('/addItem', { name: 'Faster', description: 'Code Faster', ownerKey }), 1000)
+  // remove an item in 2000ms
+  .setTimeout(() => client.dispatchAction('/removeItem', { name: 'Harder', ownerKey }), 2000)
+  // add an item in 3000ms
+  .setTimeout(() => client.dispatchAction('/addItem', { name: 'Stronger', description: 'Code stronger', ownerKey }), 3000)
+  // remove every item in 4000
+  .setTimeout(() => todoList.value.forEach(({ description }, name) => {
+    void description;
     client.dispatchAction('/removeItem', { name, ownerKey });
   }), 4000)
   .setTimeout(todoListLifespan.release, 5000) // release the subscriber in 5000ms

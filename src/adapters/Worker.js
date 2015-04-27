@@ -55,31 +55,39 @@ class WorkerClient extends Client {
     this._worker.postMessage({ [this._salt]: { t: EVENT, js: ev.toJS() } });
   }
 
+  _receivePublish(j) {
+    const { path } = j;
+    if(__DEV__) {
+      path.should.be.a.String;
+    }
+    if(this._fetching[path] !== void 0) {
+      if(j === null) {
+        this._fetching[path].reject(new Error(`Couldn't fetch store`));
+      }
+      else {
+        this._fetching[path].resolve(Remutable.fromJS(j).createConsumer());
+      }
+      delete this._fetching[path];
+    }
+    return null;
+  }
+
+  _receiveEvent(j) {
+    const ev = Server.Event.fromJS(j);
+    if(__DEV__) {
+      ev.should.be.an.instanceOf(Server.Event);
+    }
+    return this.receiveFromServer(ev);
+  }
+
   receiveFromWorker(message) {
     if(_.isObject(message) && message[this._salt] !== void 0) {
       const { t, j } = message[this._salt];
       if(t === PUBLISH) {
-        const { path } = j;
-        if(__DEV__) {
-          path.should.be.a.String;
-        }
-        if(this._fetching[path] !== void 0) {
-          if(j === null) {
-            this._fetching[path].reject(new Error(`Couldn't fetch store`));
-          }
-          else {
-            this._fetching[path].resolve(Remutable.fromJS(j).createConsumer());
-          }
-          delete this._fetching[path];
-        }
-        return;
+        return this._receivePublish(j);
       }
       if(t === EVENT) {
-        const ev = Server.Event.fromJS(j);
-        if(__DEV__) {
-          ev.should.be.an.instanceOf(Server.Event);
-        }
-        return this.receiveFromServer(ev);
+        return this._receiveEvent(j);
       }
       throw new TypeError(`Unknown message type: ${message}`);
     }
@@ -116,23 +124,31 @@ class WorkerLink extends Link {
     this._self.postMessage({ [this._salt]: { t: EVENT, js: ev.toJS() } });
   }
 
+  _receivePublish(j) {
+    const ev = Client.Event.fromJS(j);
+    if(__DEV__) {
+      ev.should.be.an.instanceOf(Client.Event);
+      return this.receiveFromClient(ev);
+    }
+    return null;
+  }
+
+  _receiveFetch(j) {
+    const { path } = j;
+    if(this.stores[path] === void 0) {
+      return this._self.postMessage({ [this._salt]: { t: PUBLISH, j: null } });
+    }
+    return this._self.postMessage({ [this._salt]: { t: PUBLISH, j: this.stores[path].toJS() } });
+  }
+
   receiveFromWorker(message) {
     if(_.isObject(message) && message[this._salt] !== void 0) {
       const { t, j } = message[this._salt];
       if(t === EVENT) {
-        const ev = Client.Event.fromJS(j);
-        if(__DEV__) {
-          ev.should.be.an.instanceOf(Client.Event);
-          return this.receiveFromClient(ev);
-        }
-        return;
+        return this._receivePublish(j);
       }
       if(t === FETCH) {
-        const { path } = j;
-        if(this.stores[path] === void 0) {
-          return this._self.postMessage({ [this._salt]: { t: PUBLISH, j: null } });
-        }
-        return this._self.postMessage({ [this._salt]: { t: PUBLISH, j: this.stores[path].toJS() } });
+        return this._receiveFetch(j);
       }
       throw new TypeError(`Unknown message type: ${message}`);
     }

@@ -89,7 +89,10 @@ class Action extends Event {
   }
 
   _toJS() {
-    return { p: this.path, a: this.params };
+    return {
+      p: this.path,
+      a: this.params,
+    };
   }
 
   static t() {
@@ -97,13 +100,16 @@ class Action extends Event {
   }
 
   static fromJS({ p, a }) {
-    return new Action({ path: p, params: a });
+    return new Action({
+      path: p,
+      params: a,
+    });
   }
 }
 
 Event._ = {};
-Event.Subscribe   = Event._[Subscribe.t()]    = Subscribe;
-Event.Unsubscribe = Event._[Unsubscribe.t()]  = Unsubscribe;
-Event.Action      = Event._[Action.t()]       = Action;
+Event.Subscribe = Event._[Subscribe.t()] = Subscribe;
+Event.Unsubscribe = Event._[Unsubscribe.t()] = Unsubscribe;
+Event.Action = Event._[Action.t()] = Action;
 
 export default { Event };

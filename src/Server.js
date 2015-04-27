@@ -17,7 +17,8 @@ class Link {
       this.sendToClient.should.not.be.exactly(Link.prototype.sendToClient); // ensure virtual
     }
     this.lifespan = new Lifespan();
-    this.receiveFromClient = null; // will be set by the server; should be called when received client events, to forward them to the server
+    // will be set by the server; should be called when received client events, to forward them to the server
+    this.receiveFromClient = null;
     this.lifespan.onRelease(() => {
       this.receiveFromClient = null;
     });
