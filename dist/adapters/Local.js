@@ -1,18 +1,20 @@
 'use strict';
 
-var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } };
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-var _get = function get(object, property, receiver) { var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
-
-var _inherits = function (subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
-
 Object.defineProperty(exports, '__esModule', {
   value: true
 });
 
-var _Client$Server = require('../');
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+var _get = function get(_x2, _x3, _x4) { var _again = true; _function: while (_again) { desc = parent = getter = undefined; _again = false; var object = _x2,
+    property = _x3,
+    receiver = _x4; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x2 = parent; _x3 = property; _x4 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; }
+
+var _2 = require('../');
 
 require('babel/polyfill');
 var _ = require('lodash');
@@ -26,14 +28,14 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
-var Link = _Client$Server.Server.Link;
+var Link = _2.Server.Link;
 
 var _LocalServer = undefined;
 var _LocalLink = undefined;
 
 var LocalClient = (function (_Client) {
   function LocalClient(server) {
-    var _this = this;
+    var _this2 = this;
 
     _classCallCheck(this, LocalClient);
 
@@ -45,8 +47,8 @@ var LocalClient = (function (_Client) {
     this._link = new _LocalLink(this);
     this._server.acceptLink(this._link);
     this.lifespan.onRelease(function () {
-      _this._link.lifespan.release();
-      _this._link = null;
+      _this2._link.lifespan.release();
+      _this2._link = null;
     });
   }
 
@@ -59,24 +61,26 @@ var LocalClient = (function (_Client) {
     }
   }, {
     key: 'fetch',
-    value: function fetch(path) {
-      var _this2 = this;
 
-      // just ignore hash
+    // implements
+    // ignore hash
+    value: function fetch(path) {
+      var _this3 = this;
+
+      // fail if there is not such published path
       return Promise['try'](function () {
-        // fail if there is not such published path
-        _this2._server.stores.should.have.property(path);
-        return _this2._server.stores[path];
+        _this3._server.stores.should.have.property(path);
+        return _this3._server.stores[path];
       });
     }
   }]);
 
   return LocalClient;
-})(_Client$Server.Client);
+})(_2.Client);
 
 var LocalLink = (function (_Link) {
   function LocalLink(client) {
-    var _this3 = this;
+    var _this4 = this;
 
     _classCallCheck(this, LocalLink);
 
@@ -87,7 +91,7 @@ var LocalLink = (function (_Link) {
     this._client = client;
     this.lifespan.onRelease(function () {
       client.lifespan.release();
-      _this3._client = null;
+      _this4._client = null;
     });
   }
 
@@ -107,7 +111,7 @@ _LocalLink = LocalLink;
 
 var LocalServer = (function (_Server) {
   function LocalServer() {
-    var _this4 = this;
+    var _this5 = this;
 
     var stores = arguments[0] === undefined ? {} : arguments[0];
 
@@ -119,14 +123,14 @@ var LocalServer = (function (_Server) {
     _get(Object.getPrototypeOf(LocalServer.prototype), 'constructor', this).call(this);
     this.stores = stores;
     this.lifespan.onRelease(function () {
-      return _this4.stores = null;
+      return _this5.stores = null;
     });
   }
 
   _inherits(LocalServer, _Server);
 
   return LocalServer;
-})(_Client$Server.Server);
+})(_2.Server);
 
 _LocalServer = LocalServer;
 

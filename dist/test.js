@@ -1,20 +1,20 @@
 'use strict';
 
-var _interopRequireDefault = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
-var _Lifespan = require('lifespan');
+var _lifespan = require('lifespan');
 
-var _Lifespan2 = _interopRequireDefault(_Lifespan);
+var _lifespan2 = _interopRequireDefault(_lifespan);
 
-var _Remutable = require('remutable');
+var _remutable = require('remutable');
 
-var _Remutable2 = _interopRequireDefault(_Remutable);
+var _remutable2 = _interopRequireDefault(_remutable);
 
-var _Client$Server = require('./adapters/Local');
+var _adaptersLocal = require('./adapters/Local');
 
-var _hash = require('sha256');
+var _sha256 = require('sha256');
 
-var _hash2 = _interopRequireDefault(_hash);
+var _sha2562 = _interopRequireDefault(_sha256);
 
 require('babel/polyfill');
 var _ = require('lodash');
@@ -31,8 +31,8 @@ if (__DEV__) {
 
 var stores = {};
 
-var server = new _Client$Server.Server(stores);
-var client = new _Client$Server.Client(server);
+var server = new _adaptersLocal.Server(stores);
+var client = new _adaptersLocal.Client(server);
 
 server.lifespan.onRelease(function () {
   return console.log('server released');
@@ -41,16 +41,17 @@ client.lifespan.onRelease(function () {
   return console.log('client released');
 });
 
+// server main
 _.defer(function () {
-  // server main
   // initialize several stores
-  var clock = stores['/clock'] = new _Remutable2['default']({
+  var clock = stores['/clock'] = new _remutable2['default']({
     date: Date.now() });
-  var todoList = stores['/todoList'] = new _Remutable2['default']({});
+  var todoList = stores['/todoList'] = new _remutable2['default']({});
 
+  // update clock every 500ms
   server.lifespan.setInterval(function () {
     server.dispatchUpdate('/clock', clock.set('date', Date.now()).commit());
-  }, 500); // update clock every 500ms
+  }, 500);
 
   var actions = {
     '/addItem': function addItem(_ref) {
@@ -58,7 +59,7 @@ _.defer(function () {
       var description = _ref.description;
       var ownerKey = _ref.ownerKey;
 
-      var item = { name: name, description: description, ownerHash: _hash2['default'](ownerKey) };
+      var item = { name: name, description: description, ownerHash: _sha2562['default'](ownerKey) };
       if (todoList.get(name) !== void 0) {
         return;
       }
@@ -74,7 +75,7 @@ _.defer(function () {
       }
       var ownerHash = item.ownerHash;
 
-      if (_hash2['default'](ownerKey) !== ownerHash) {
+      if (_sha2562['default'](ownerKey) !== ownerHash) {
         return;
       }
       server.dispatchUpdate('/todoList', todoList.set(name, void 0).commit());
@@ -89,25 +90,28 @@ _.defer(function () {
     }
   }, server.lifespan);
 
-  server.lifespan.setTimeout(server.lifespan.release, 10000); // release the server in 10000ms
+  // release the server in 10000ms
+  server.lifespan.setTimeout(server.lifespan.release, 10000);
 });
 
+// client main
 _.defer(function () {
-  // client main
-  var ownerKey = _hash2['default']('' + Date.now() + ':' + _.random());
-  client.getStore('/clock', client.lifespan) // subscribe to a store
+  var ownerKey = _sha2562['default']('' + Date.now() + ':' + _.random());
+  // subscribe to a store
+  client.getStore('/clock', client.lifespan)
   // every time its updated (including when its first fetched), display the modified value (it is an Immutable.Map)
   .onUpdate(function (_ref4) {
     var head = _ref4.head;
 
     console.log('clock tick', head.get('date'));
-  }).onDelete(function () {
-    // if its deleted, then do something appropriate
+  })
+  // if its deleted, then do something appropriate
+  .onDelete(function () {
     console.log('clock deleted');
   });
 
   // this store subscribers has a limited lifespan (eg. a React components' own lifespan)
-  var todoListLifespan = new _Lifespan2['default']();
+  var todoListLifespan = new _lifespan2['default']();
   var todoList = client.getStore('/todoList', todoListLifespan)
   // when its updated, we can access not only the up-to-date head, but also the underlying patch object,
   .onUpdate(function (_ref5, patch) {
@@ -119,8 +123,8 @@ _.defer(function () {
   }).onDelete(function () {
     console.log('todoList deleted');
   });
-
-  client.dispatchAction('/addItem', { name: 'Harder', description: 'Code harder', ownerKey: ownerKey }); // dispatch some actions
+  // dispatch some actions
+  client.dispatchAction('/addItem', { name: 'Harder', description: 'Code harder', ownerKey: ownerKey });
   client.dispatchAction('/addItem', { name: 'Better', description: 'Code better', ownerKey: ownerKey });
   client.lifespan
   // add a new item in 1000ms
@@ -143,6 +147,9 @@ _.defer(function () {
       void description;
       client.dispatchAction('/removeItem', { name: name, ownerKey: ownerKey });
     });
-  }, 4000).setTimeout(todoListLifespan.release, 5000) // release the subscriber in 5000ms
-  .setTimeout(client.lifespan.release, 6000); // release the client in 6000ms
+  }, 4000)
+  // release the subscriber in 5000ms
+  .setTimeout(todoListLifespan.release, 5000)
+  // release the client in 6000ms
+  .setTimeout(client.lifespan.release, 6000);
 });

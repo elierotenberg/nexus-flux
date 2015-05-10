@@ -50,7 +50,8 @@ class Producer {
     return this.set(path, void 0);
   }
 
-  set() { // set is chainable
+  // chainable
+  set() {
     this._engine.remutableProducer.set.apply(this._engine.remutableProducer, arguments);
     return this;
   }
@@ -73,7 +74,8 @@ class Consumer {
     if(__DEV__) {
       this._onUpdateHandlers = 0;
       this._onDeleteHandlers = 0;
-      asap(() => { // check that handlers are immediatly set
+      // check that handlers are immediatly set
+      asap(() => {
         try {
           this._onUpdateHandlers.should.be.above(0);
           this._onDeleteHandlers.should.be.above(0);

@@ -11,16 +11,18 @@ const client = new Client(server);
 server.lifespan.onRelease(() => console.log('server released'));
 client.lifespan.onRelease(() => console.log('client released'));
 
-_.defer(() => { // server main
+// server main
+_.defer(() => {
   // initialize several stores
   const clock = stores['/clock'] = new Remutable({
     date: Date.now(),
   });
   const todoList = stores['/todoList'] = new Remutable({});
 
+  // update clock every 500ms
   server.lifespan.setInterval(() => {
     server.dispatchUpdate('/clock', clock.set('date', Date.now()).commit());
-  }, 500); // update clock every 500ms
+  }, 500);
 
   const actions = {
     '/addItem': ({ name, description, ownerKey }) => {
@@ -49,17 +51,21 @@ _.defer(() => { // server main
     }
   }, server.lifespan);
 
-  server.lifespan.setTimeout(server.lifespan.release, 10000); // release the server in 10000ms
+  // release the server in 10000ms
+  server.lifespan.setTimeout(server.lifespan.release, 10000);
 });
 
-_.defer(() => { // client main
+// client main
+_.defer(() => {
   const ownerKey = hash(`${Date.now()}:${_.random()}`);
-  client.getStore('/clock', client.lifespan) // subscribe to a store
+  // subscribe to a store
+  client.getStore('/clock', client.lifespan)
   // every time its updated (including when its first fetched), display the modified value (it is an Immutable.Map)
   .onUpdate(({ head }) => {
     console.log('clock tick', head.get('date'));
   })
-  .onDelete(() => { // if its deleted, then do something appropriate
+  // if its deleted, then do something appropriate
+  .onDelete(() => {
     console.log('clock deleted');
   });
 
@@ -75,8 +81,8 @@ _.defer(() => { // client main
   .onDelete(() => {
     console.log('todoList deleted');
   });
-
-  client.dispatchAction('/addItem', { name: 'Harder', description: 'Code harder', ownerKey }); // dispatch some actions
+  // dispatch some actions
+  client.dispatchAction('/addItem', { name: 'Harder', description: 'Code harder', ownerKey });
   client.dispatchAction('/addItem', { name: 'Better', description: 'Code better', ownerKey });
   client.lifespan
   // add a new item in 1000ms
@@ -90,6 +96,8 @@ _.defer(() => { // client main
     void description;
     client.dispatchAction('/removeItem', { name, ownerKey });
   }), 4000)
-  .setTimeout(todoListLifespan.release, 5000) // release the subscriber in 5000ms
-  .setTimeout(client.lifespan.release, 6000); // release the client in 6000ms
+  // release the subscriber in 5000ms
+  .setTimeout(todoListLifespan.release, 5000)
+  // release the client in 6000ms
+  .setTimeout(client.lifespan.release, 6000);
 });

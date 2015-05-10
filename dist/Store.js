@@ -1,32 +1,34 @@
 'use strict';
 
-var _interopRequireDefault = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
-
-var _get = function get(object, property, receiver) { var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
-
-var _inherits = function (subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
-
-var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } };
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
 Object.defineProperty(exports, '__esModule', {
   value: true
 });
+
+var _get = function get(_x2, _x3, _x4) { var _again = true; _function: while (_again) { desc = parent = getter = undefined; _again = false; var object = _x2,
+    property = _x3,
+    receiver = _x4; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x2 = parent; _x3 = property; _x4 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
+
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
 var _asap = require('asap');
 
 var _asap2 = _interopRequireDefault(_asap);
 
-var _EventEmitter2 = require('nexus-events');
+var _nexusEvents = require('nexus-events');
 
-var _Lifespan = require('lifespan');
+var _lifespan = require('lifespan');
 
-var _Lifespan2 = _interopRequireDefault(_Lifespan);
+var _lifespan2 = _interopRequireDefault(_lifespan);
 
-var _Remutable = require('remutable');
+var _remutable = require('remutable');
 
-var _Remutable2 = _interopRequireDefault(_Remutable);
+var _remutable2 = _interopRequireDefault(_remutable);
 
 require('babel/polyfill');
 var _ = require('lodash');
@@ -40,7 +42,7 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
-var Patch = _Remutable2['default'].Patch;
+var Patch = _remutable2['default'].Patch;
 
 var EVENTS = { UPDATE: 'c', DELETE: 'd' };
 
@@ -48,7 +50,7 @@ var _Engine = undefined;
 
 var Producer = (function () {
   function Producer(engine) {
-    var _this = this;
+    var _this2 = this;
 
     _classCallCheck(this, Producer);
 
@@ -57,11 +59,11 @@ var Producer = (function () {
     }
     Object.assign(this, {
       _engine: engine,
-      lifespan: new _Lifespan2['default']() });
+      lifespan: new _lifespan2['default']() });
     _.bindAll(this, ['get', 'unset', 'set']);
     // proxy getters to engine.remutableProducers
     ['head', 'working', 'hash', 'version'].forEach(function (p) {
-      return Object.defineProperty(_this, p, {
+      return Object.defineProperty(_this2, p, {
         enumerable: true,
         get: function get() {
           return engine.remutableProducer[p];
@@ -69,11 +71,11 @@ var Producer = (function () {
     });
     // proxy methods to engine.remutableProducers
     ['rollback', 'match'].forEach(function (m) {
-      return _this[m] = engine.remutableProducer[m];
+      return _this2[m] = engine.remutableProducer[m];
     });
     // proxy methods to engine
     ['apply', 'commit', 'delete'].forEach(function (m) {
-      return _this[m] = engine[m];
+      return _this2[m] = engine[m];
     });
   }
 
@@ -95,8 +97,9 @@ var Producer = (function () {
     }
   }, {
     key: 'set',
+
+    // chainable
     value: function set() {
-      // set is chainable
       this._engine.remutableProducer.set.apply(this._engine.remutableProducer, arguments);
       return this;
     }
@@ -107,7 +110,7 @@ var Producer = (function () {
 
 var Consumer = (function () {
   function Consumer(engine) {
-    var _this2 = this;
+    var _this3 = this;
 
     _classCallCheck(this, Consumer);
 
@@ -116,17 +119,17 @@ var Consumer = (function () {
     }
     Object.assign(this, {
       _engine: engine,
-      lifespan: new _Lifespan2['default']() });
+      lifespan: new _lifespan2['default']() });
     _.bindAll(this, ['onUpdate', 'onDelete']);
 
     if (__DEV__) {
       this._onUpdateHandlers = 0;
       this._onDeleteHandlers = 0;
+      // check that handlers are immediatly set
       _asap2['default'](function () {
-        // check that handlers are immediatly set
         try {
-          _this2._onUpdateHandlers.should.be.above(0);
-          _this2._onDeleteHandlers.should.be.above(0);
+          _this3._onUpdateHandlers.should.be.above(0);
+          _this3._onDeleteHandlers.should.be.above(0);
         } catch (err) {
           console.warn('StoreConsumer: both onUpdate and onDelete handlers should be set immediatly.');
         }
@@ -170,15 +173,15 @@ var Consumer = (function () {
 
 var Engine = (function (_EventEmitter) {
   function Engine() {
-    var _this3 = this;
+    var _this4 = this;
 
     var data = arguments[0] === undefined ? {} : arguments[0];
 
     _classCallCheck(this, Engine);
 
     _get(Object.getPrototypeOf(Engine.prototype), 'constructor', this).call(this);
-    this.lifespan = new _Lifespan2['default']();
-    this.remutable = new _Remutable2['default'](data);
+    this.lifespan = new _lifespan2['default']();
+    this.remutable = new _remutable2['default'](data);
     _.bindAll(this, ['createProducer', 'createConsumer', 'apply', 'commit', 'delete']);
     this.remutableProducer = this.remutable.createProducer();
     this.remutableConsumer = this.remutable.createConsumer();
@@ -186,12 +189,12 @@ var Engine = (function (_EventEmitter) {
     this.producers = 0;
     this.lifespan.onRelease(function () {
       if (__DEV__) {
-        _this3.consumers.should.be.exactly(0);
-        _this3.producers.should.be.exactly(0);
+        _this4.consumers.should.be.exactly(0);
+        _this4.producers.should.be.exactly(0);
       }
-      _this3.remutable = null;
-      _this3.remutableConsumer = null;
-      _this3.remutableProducer = null;
+      _this4.remutable = null;
+      _this4.remutableConsumer = null;
+      _this4.remutableProducer = null;
     });
   }
 
@@ -200,24 +203,24 @@ var Engine = (function (_EventEmitter) {
   _createClass(Engine, [{
     key: 'createProducer',
     value: function createProducer() {
-      var _this4 = this;
+      var _this5 = this;
 
       var producer = new Producer(this);
       this.producers = this.producers + 1;
       producer.lifespan.onRelease(function () {
-        return _this4.producers = _this4.producers - 1;
+        return _this5.producers = _this5.producers - 1;
       });
       return producer;
     }
   }, {
     key: 'createConsumer',
     value: function createConsumer() {
-      var _this5 = this;
+      var _this6 = this;
 
       var consumer = new Consumer(this);
       this.consumers = this.consumers + 1;
       consumer.lifespan.onRelease(function () {
-        return _this5.consumers = _this5.consumers - 1;
+        return _this6.consumers = _this6.consumers - 1;
       });
       return consumer;
     }
@@ -244,7 +247,7 @@ var Engine = (function (_EventEmitter) {
   }]);
 
   return Engine;
-})(_EventEmitter2.EventEmitter);
+})(_nexusEvents.EventEmitter);
 
 _Engine = Engine;
 

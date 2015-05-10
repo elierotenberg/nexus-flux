@@ -1,36 +1,38 @@
 'use strict';
 
-var _interopRequireDefault = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
-
-var _get = function get(object, property, receiver) { var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
-
-var _inherits = function (subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
-
-var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } };
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
 Object.defineProperty(exports, '__esModule', {
   value: true
 });
 
-var _Remutable = require('remutable');
+var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { desc = parent = getter = undefined; _again = false; var object = _x,
+    property = _x2,
+    receiver = _x3; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
-var _Remutable2 = _interopRequireDefault(_Remutable);
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _Lifespan = require('lifespan');
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
-var _Lifespan2 = _interopRequireDefault(_Lifespan);
+function _inherits(subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; }
 
-var _EventEmitter2 = require('nexus-events');
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-var _Client = require('./Client.Event');
+var _remutable = require('remutable');
 
-var _Client2 = _interopRequireDefault(_Client);
+var _remutable2 = _interopRequireDefault(_remutable);
+
+var _lifespan = require('lifespan');
+
+var _lifespan2 = _interopRequireDefault(_lifespan);
+
+var _nexusEvents = require('nexus-events');
 
 // we just need this reference for typechecks
 
-var _Event = require('./Server.Event');
+var _ClientEvent = require('./Client.Event');
+
+var _ClientEvent2 = _interopRequireDefault(_ClientEvent);
+
+var _ServerEvent = require('./Server.Event');
 
 require('babel/polyfill');
 var _ = require('lodash');
@@ -47,36 +49,34 @@ if (__DEV__) {
 
 var _Server = undefined;
 
-/**
- * @abstract
- */
+// abstract
 
 var Link = (function () {
   function Link() {
-    var _this = this;
+    var _this2 = this;
 
     _classCallCheck(this, Link);
 
     if (__DEV__) {
-      this.constructor.should.not.be.exactly(Link); // ensure abstracts
-      this.sendToClient.should.not.be.exactly(Link.prototype.sendToClient); // ensure virtual
+      // ensure abstracts
+      this.constructor.should.not.be.exactly(Link);
+      // ensure virtual
+      this.sendToClient.should.not.be.exactly(Link.prototype.sendToClient);
     }
-    this.lifespan = new _Lifespan2['default']();
+    this.lifespan = new _lifespan2['default']();
     // will be set by the server; should be called when received client events, to forward them to the server
     this.receiveFromClient = null;
     this.lifespan.onRelease(function () {
-      _this.receiveFromClient = null;
+      _this2.receiveFromClient = null;
     });
   }
 
   _createClass(Link, [{
     key: 'sendToClient',
 
-    /**
-     * @virtual
-     */
+    // virtual
+    // should forward the event to the associated client
     value: function sendToClient(ev) {
-      // should forward the event to the associated client
       if (__DEV__) {
         ev.should.be.an.instanceOf(_Server.Event);
       }
@@ -84,8 +84,9 @@ var Link = (function () {
     }
   }, {
     key: 'acceptFromServer',
+
+    // will be called by the server
     value: function acceptFromServer(receiveFromClient) {
-      // will be called by the server
       if (__DEV__) {
         receiveFromClient.should.be.a.Function;
       }
@@ -93,8 +94,9 @@ var Link = (function () {
     }
   }, {
     key: 'receiveFromServer',
+
+    // will be called by server
     value: function receiveFromServer(ev) {
-      // will be called by server
       if (__DEV__) {
         ev.should.be.an.instanceOf(_Server.Event);
       }
@@ -107,26 +109,26 @@ var Link = (function () {
 
 var Server = (function (_EventEmitter) {
   function Server() {
-    var _this2 = this;
+    var _this3 = this;
 
     _classCallCheck(this, Server);
 
     _get(Object.getPrototypeOf(Server.prototype), 'constructor', this).call(this);
-    this.lifespan = new _Lifespan2['default']();
+    this.lifespan = new _lifespan2['default']();
     this._links = {};
     this._subscriptions = {};
     this.lifespan.onRelease(function () {
-      _.each(_this2._links, function (_ref, linkID) {
+      _.each(_this3._links, function (_ref, linkID) {
         var link = _ref.link;
         var subscriptions = _ref.subscriptions;
 
         _.each(subscriptions, function (path) {
-          return _this2.unsubscribe(linkID, path);
+          return _this3.unsubscribe(linkID, path);
         });
         link.lifespan.release();
       });
-      _this2._links = null;
-      _this2._subscriptions = null;
+      _this3._links = null;
+      _this3._subscriptions = null;
     });
   }
 
@@ -135,29 +137,29 @@ var Server = (function (_EventEmitter) {
   _createClass(Server, [{
     key: 'dispatchAction',
     value: function dispatchAction(path, params) {
-      var _this3 = this;
+      var _this4 = this;
 
       return Promise['try'](function () {
         if (__DEV__) {
           path.should.be.a.String;
           params.should.be.an.Object;
         }
-        _this3.emit('action', { path: path, params: params });
+        _this4.emit('action', { path: path, params: params });
       });
     }
   }, {
     key: 'dispatchUpdate',
     value: function dispatchUpdate(path, patch) {
-      var _this4 = this;
+      var _this5 = this;
 
       if (__DEV__) {
         path.should.be.a.String;
-        patch.should.be.an.instanceOf(_Remutable2['default'].Patch);
+        patch.should.be.an.instanceOf(_remutable2['default'].Patch);
       }
       if (this._subscriptions[path] !== void 0) {
         (function () {
           var ev = new Server.Event.Update({ path: path, patch: patch });
-          _.each(_this4._subscriptions[path], function (link) {
+          _.each(_this5._subscriptions[path], function (link) {
             link.receiveFromServer(ev);
           });
         })();
@@ -201,7 +203,7 @@ var Server = (function (_EventEmitter) {
   }, {
     key: 'acceptLink',
     value: function acceptLink(link) {
-      var _this5 = this;
+      var _this6 = this;
 
       if (__DEV__) {
         link.should.be.an.instanceOf(Link);
@@ -212,13 +214,13 @@ var Server = (function (_EventEmitter) {
         link: link,
         subscriptions: {} };
       link.acceptFromServer(function (ev) {
-        return _this5.receiveFromLink(linkID, ev);
+        return _this6.receiveFromLink(linkID, ev);
       });
       link.lifespan.onRelease(function () {
-        _.each(_this5._links[linkID].subscriptions, function (path) {
-          return _this5.unsubscribe(linkID, path);
+        _.each(_this6._links[linkID].subscriptions, function (path) {
+          return _this6.unsubscribe(linkID, path);
         });
-        delete _this5._links[linkID];
+        delete _this6._links[linkID];
       });
     }
   }, {
@@ -227,15 +229,15 @@ var Server = (function (_EventEmitter) {
       if (__DEV__) {
         linkID.should.be.a.String;
         this._links.should.have.property(linkID);
-        ev.should.be.an.instanceOf(_Client2['default'].Event);
+        ev.should.be.an.instanceOf(_ClientEvent2['default'].Event);
       }
-      if (ev instanceof _Client2['default'].Event.Subscribe) {
+      if (ev instanceof _ClientEvent2['default'].Event.Subscribe) {
         return this.subscribe(linkID, ev.path);
       }
-      if (ev instanceof _Client2['default'].Event.Unsubscribe) {
+      if (ev instanceof _ClientEvent2['default'].Event.Unsubscribe) {
         return this.unsubscribe(linkID, ev.path);
       }
-      if (ev instanceof _Client2['default'].Event.Action) {
+      if (ev instanceof _ClientEvent2['default'].Event.Action) {
         return this.dispatchAction(ev.path, ev.params);
       }
       if (__DEV__) {
@@ -245,11 +247,11 @@ var Server = (function (_EventEmitter) {
   }]);
 
   return Server;
-})(_EventEmitter2.EventEmitter);
+})(_nexusEvents.EventEmitter);
 
 _Server = Server;
 
-Object.assign(Server, { Event: _Event.Event, Link: Link });
+Object.assign(Server, { Event: _ServerEvent.Event, Link: Link });
 
 exports['default'] = Server;
 module.exports = exports['default'];

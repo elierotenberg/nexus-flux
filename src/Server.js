@@ -1,20 +1,20 @@
 import Remutable from 'remutable';
 import Lifespan from 'lifespan';
 import { EventEmitter } from 'nexus-events';
-
-import Client from './Client.Event'; // we just need this reference for typechecks
+// we just need this reference for typechecks
+import Client from './Client.Event';
 import { Event } from './Server.Event';
 
 let _Server;
 
-/**
- * @abstract
- */
+// abstract
 class Link {
   constructor() {
     if(__DEV__) {
-      this.constructor.should.not.be.exactly(Link); // ensure abstracts
-      this.sendToClient.should.not.be.exactly(Link.prototype.sendToClient); // ensure virtual
+      // ensure abstracts
+      this.constructor.should.not.be.exactly(Link);
+      // ensure virtual
+      this.sendToClient.should.not.be.exactly(Link.prototype.sendToClient);
     }
     this.lifespan = new Lifespan();
     // will be set by the server; should be called when received client events, to forward them to the server
@@ -24,24 +24,25 @@ class Link {
     });
   }
 
-  /**
-   * @virtual
-   */
-  sendToClient(ev) { // should forward the event to the associated client
+  // virtual
+  // should forward the event to the associated client
+  sendToClient(ev) {
     if(__DEV__) {
       ev.should.be.an.instanceOf(_Server.Event);
     }
     throw new TypeError('Virtual method invocation');
   }
 
-  acceptFromServer(receiveFromClient) { // will be called by the server
+  // will be called by the server
+  acceptFromServer(receiveFromClient) {
     if(__DEV__) {
       receiveFromClient.should.be.a.Function;
     }
     this.receiveFromClient = receiveFromClient;
   }
 
-  receiveFromServer(ev) { // will be called by server
+  // will be called by server
+  receiveFromServer(ev) {
     if(__DEV__) {
       ev.should.be.an.instanceOf(_Server.Event);
     }

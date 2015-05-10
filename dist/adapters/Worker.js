@@ -1,26 +1,28 @@
 'use strict';
 
-var _interopRequireDefault = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
-
-var _defineProperty = function (obj, key, value) { return Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); };
-
-var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } };
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-var _get = function get(object, property, receiver) { var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { return get(parent, property, receiver); } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } };
-
-var _inherits = function (subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; };
-
 Object.defineProperty(exports, '__esModule', {
   value: true
 });
 
-var _Client$Server = require('../');
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _Remutable = require('remutable');
+var _get = function get(_x5, _x6, _x7) { var _again = true; _function: while (_again) { desc = parent = getter = undefined; _again = false; var object = _x5,
+    property = _x6,
+    receiver = _x7; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x5 = parent; _x6 = property; _x7 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
 
-var _Remutable2 = _interopRequireDefault(_Remutable);
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+
+function _defineProperty(obj, key, value) { return Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); }
+
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
+
+function _inherits(subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; }
+
+var _2 = require('../');
+
+var _remutable = require('remutable');
+
+var _remutable2 = _interopRequireDefault(_remutable);
 
 require('babel/polyfill');
 var _ = require('lodash');
@@ -34,7 +36,7 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
-var Link = _Client$Server.Server.Link;
+var Link = _2.Server.Link;
 
 // constants for the communication 'protocol'/convention
 var FETCH = 'f';
@@ -52,7 +54,7 @@ var DEFAULT_SALT = '__KqsrQBNHfkTYQ8mWadEDwfKM';
 
 var WorkerClient = (function (_Client) {
   function WorkerClient(worker) {
-    var _this = this;
+    var _this2 = this;
 
     var salt = arguments[1] === undefined ? DEFAULT_SALT : arguments[1];
 
@@ -68,11 +70,11 @@ var WorkerClient = (function (_Client) {
     this._fetching = {};
     this._worker.addEventListener('message', this.receiveFromWorker);
     this.lifespan.onRelease(function () {
-      _.each(_this._fetching, function (_ref) {
+      _.each(_this2._fetching, function (_ref) {
         var reject = _ref.reject;
         return reject(new Error('Client released'));
       });
-      _this._worker.removeEventListener('message', _this.receiveFromWorker);
+      _this2._worker.removeEventListener('message', _this2.receiveFromWorker);
     });
   }
 
@@ -81,7 +83,7 @@ var WorkerClient = (function (_Client) {
   _createClass(WorkerClient, [{
     key: 'fetch',
     value: function fetch(path, hash) {
-      var _this2 = this;
+      var _this3 = this;
 
       if (this._fetching[path] === void 0) {
         this._fetching[path] = {
@@ -89,8 +91,8 @@ var WorkerClient = (function (_Client) {
           resolve: null,
           reject: null };
         this._fetching[path].promise = new Promise(function (resolve, reject) {
-          _this2._fetching[path].resolve = resolve;
-          _this2._fetching[path].reject = reject;
+          _this3._fetching[path].resolve = resolve;
+          _this3._fetching[path].reject = reject;
         });
         this._worker.postMessage(_defineProperty({}, this._salt, { t: FETCH, j: { hash: hash, path: path } }));
       }
@@ -100,7 +102,7 @@ var WorkerClient = (function (_Client) {
     key: 'sendToServer',
     value: function sendToServer(ev) {
       if (__DEV__) {
-        ev.should.be.an.instanceOf(_Client$Server.Client.Event);
+        ev.should.be.an.instanceOf(_2.Client.Event);
       }
       this._worker.postMessage(_defineProperty({}, this._salt, { t: EVENT, js: ev.toJS() }));
     }
@@ -116,7 +118,7 @@ var WorkerClient = (function (_Client) {
         if (j === null) {
           this._fetching[path].reject(new Error('Couldn\'t fetch store'));
         } else {
-          this._fetching[path].resolve(_Remutable2['default'].fromJS(j).createConsumer());
+          this._fetching[path].resolve(_remutable2['default'].fromJS(j).createConsumer());
         }
         delete this._fetching[path];
       }
@@ -125,9 +127,9 @@ var WorkerClient = (function (_Client) {
   }, {
     key: '_receiveEvent',
     value: function _receiveEvent(j) {
-      var ev = _Client$Server.Server.Event.fromJS(j);
+      var ev = _2.Server.Event.fromJS(j);
       if (__DEV__) {
-        ev.should.be.an.instanceOf(_Client$Server.Server.Event);
+        ev.should.be.an.instanceOf(_2.Server.Event);
       }
       return this.receiveFromServer(ev);
     }
@@ -151,7 +153,7 @@ var WorkerClient = (function (_Client) {
   }]);
 
   return WorkerClient;
-})(_Client$Server.Client);
+})(_2.Client);
 
 /* jshint browser:false */
 
@@ -159,7 +161,7 @@ var WorkerClient = (function (_Client) {
 
 var WorkerLink = (function (_Link) {
   function WorkerLink(self, stores) {
-    var _this3 = this;
+    var _this4 = this;
 
     var salt = arguments[2] === undefined ? DEFAULT_SALT : arguments[2];
 
@@ -178,9 +180,9 @@ var WorkerLink = (function (_Link) {
     this._salt = salt;
     this._self.addEventListener('message', this.receiveFromWorker);
     this.lifespan.onRelease(function () {
-      _this3._self.removeEventListener('message', _this3.receiveFromWorker);
-      _this3._self = null;
-      _this3._stores = null;
+      _this4._self.removeEventListener('message', _this4.receiveFromWorker);
+      _this4._self = null;
+      _this4._stores = null;
     });
   }
 
@@ -190,16 +192,16 @@ var WorkerLink = (function (_Link) {
     key: 'sendToClient',
     value: function sendToClient(ev) {
       if (__DEV__) {
-        ev.should.be.an.instanceOf(_Client$Server.Server.Event);
+        ev.should.be.an.instanceOf(_2.Server.Event);
       }
       this._self.postMessage(_defineProperty({}, this._salt, { t: EVENT, js: ev.toJS() }));
     }
   }, {
     key: '_receivePublish',
     value: function _receivePublish(j) {
-      var ev = _Client$Server.Client.Event.fromJS(j);
+      var ev = _2.Client.Event.fromJS(j);
       if (__DEV__) {
-        ev.should.be.an.instanceOf(_Client$Server.Client.Event);
+        ev.should.be.an.instanceOf(_2.Client.Event);
         return this.receiveFromClient(ev);
       }
       return null;
@@ -242,7 +244,7 @@ var WorkerLink = (function (_Link) {
 
 var WorkerServer = (function (_Server) {
   function WorkerServer() {
-    var _this4 = this;
+    var _this5 = this;
 
     var stores = arguments[0] === undefined ? {} : arguments[0];
     var salt = arguments[1] === undefined ? DEFAULT_SALT : arguments[1];
@@ -259,16 +261,16 @@ var WorkerServer = (function (_Server) {
     this._link = new WorkerLink(self, this._stores, this._salt);
     this.acceptLink(this._link);
     this.lifespan.onRelease(function () {
-      _this4._stores = null;
-      _this4._link.release();
-      _this4._link = null;
+      _this5._stores = null;
+      _this5._link.release();
+      _this5._link = null;
     });
   }
 
   _inherits(WorkerServer, _Server);
 
   return WorkerServer;
-})(_Client$Server.Server);
+})(_2.Server);
 
 /* jshint worker:false */
 

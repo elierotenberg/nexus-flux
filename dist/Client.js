@@ -1,38 +1,38 @@
 'use strict';
 
-var _interopRequireDefault = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
-
-var _classCallCheck = function (instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } };
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
 Object.defineProperty(exports, '__esModule', {
   value: true
 });
 
-var _Immutable = require('immutable');
+var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
-var _Immutable2 = _interopRequireDefault(_Immutable);
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
-var _Remutable = require('remutable');
+function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
-var _Remutable2 = _interopRequireDefault(_Remutable);
+var _immutable = require('immutable');
 
-var _Lifespan = require('lifespan');
+var _immutable2 = _interopRequireDefault(_immutable);
 
-var _Lifespan2 = _interopRequireDefault(_Lifespan);
+var _remutable = require('remutable');
+
+var _remutable2 = _interopRequireDefault(_remutable);
+
+var _lifespan = require('lifespan');
+
+var _lifespan2 = _interopRequireDefault(_lifespan);
 
 var _Store = require('./Store');
 
 var _Store2 = _interopRequireDefault(_Store);
 
-var _Server = require('./Server.Event');
-
-var _Server2 = _interopRequireDefault(_Server);
-
 // we just need this reference for typechecks
 
-var _Event = require('./Client.Event');
+var _ServerEvent = require('./Server.Event');
+
+var _ServerEvent2 = _interopRequireDefault(_ServerEvent);
+
+var _ClientEvent = require('./Client.Event');
 
 require('babel/polyfill');
 var _ = require('lodash');
@@ -46,11 +46,9 @@ if (__DEV__) {
   Promise.longStackTraces();
   Error.stackTraceLimit = Infinity;
 }
-var Patch = _Remutable2['default'].Patch;
+var Patch = _remutable2['default'].Patch;
 
-/**
- * @abstract
- */
+// abstract
 
 var Client = (function () {
   function Client() {
@@ -59,11 +57,14 @@ var Client = (function () {
     _classCallCheck(this, Client);
 
     if (__DEV__) {
-      this.constructor.should.not.be.exactly(Client); // ensure abstract
-      this.fetch.should.not.be.exactly(Client.prototype.fetch); // ensure virtual
-      this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer); // ensure virtual
+      // ensure abstract
+      this.constructor.should.not.be.exactly(Client);
+      // ensure virtual
+      this.fetch.should.not.be.exactly(Client.prototype.fetch);
+      // ensure virtual
+      this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer);
     }
-    this.lifespan = new _Lifespan2['default']();
+    this.lifespan = new _lifespan2['default']();
     this._stores = {};
     this._refetching = {};
     this._injected = null;
@@ -79,9 +80,7 @@ var Client = (function () {
   _createClass(Client, [{
     key: 'fetch',
 
-    /**
-     * @virtual
-     */
+    // virtual
     value: function fetch(path, hash) {
       if (__DEV__) {
         path.should.be.a.String;
@@ -92,9 +91,7 @@ var Client = (function () {
   }, {
     key: 'sendToServer',
 
-    /**
-     * @virtual
-     */
+    // virtual
     value: function sendToServer(ev) {
       if (__DEV__) {
         ev.should.be.an.instanceOf(Client.Event);
@@ -186,7 +183,7 @@ var Client = (function () {
         injected.should.be.an.Object;
       }
       this._injected = _.mapValues(injected, function (js) {
-        return new _Immutable2['default'].Map(js);
+        return new _immutable2['default'].Map(js);
       });
     }
   }, {
@@ -201,12 +198,12 @@ var Client = (function () {
     key: 'receiveFromServer',
     value: function receiveFromServer(ev) {
       if (__DEV__) {
-        ev.should.be.an.instanceOf(_Server2['default'].Event);
+        ev.should.be.an.instanceOf(_ServerEvent2['default'].Event);
       }
-      if (ev instanceof _Server2['default'].Event.Update) {
+      if (ev instanceof _ServerEvent2['default'].Event.Update) {
         return this._update(ev.path, ev.patch);
       }
-      if (ev instanceof _Server2['default'].Event.Delete) {
+      if (ev instanceof _ServerEvent2['default'].Event.Delete) {
         return this._delete(ev.path);
       }
       throw new TypeError('Unknown event: ' + ev);
@@ -223,7 +220,8 @@ var Client = (function () {
         this._stores[path] = {
           engine: engine,
           producer: engine.createProducer(),
-          patches: {}, // initially we have no pending patches and we are not refetching
+          // initially we have no pending patches and we are not refetching
+          patches: {},
           refetching: false };
         this._refetch(path, null);
       }
@@ -244,13 +242,14 @@ var Client = (function () {
     }
   }, {
     key: 'getStore',
+
+    // returns a Store consumer
     value: function getStore(path, lifespan) {
       var _this3 = this;
 
-      // returns a Store consumer
       if (__DEV__) {
         path.should.be.a.String;
-        lifespan.should.be.an.instanceOf(_Lifespan2['default']);
+        lifespan.should.be.an.instanceOf(_lifespan2['default']);
       }
 
       var _findOrCreateStore = this.findOrCreateStore(path);
@@ -284,8 +283,8 @@ var Client = (function () {
         path.should.be.a.String;
         patch.should.be.an.instanceOf(Patch);
       }
+      // dismiss if we are not interested anymore
       if (this._stores[path] === void 0) {
-        // dismiss if we are not interested anymore
         return null;
       }
       var _stores$path = this._stores[path];
@@ -296,14 +295,16 @@ var Client = (function () {
       var source = patch.source;
       var target = patch.target;
 
+      // if the patch applies to our current version, apply it now
       if (hash === source) {
-        // if the patch applies to our current version, apply it now
         return producer.apply(patch);
-      } // we don't have a recent enough version, we need to refetch
+      }
+      // we don't have a recent enough version, we need to refetch
+      // if we arent already refetching, request a newer version (atleast newer than target)
       if (!refetching) {
-        // if we arent already refetching, request a newer version (atleast newer than target)
         return this._refetch(path, target);
-      } // if we are already refetching, store the patch for later
+      }
+      // if we are already refetching, store the patch for later
       patches[source] = patch;
     }
   }, {
@@ -332,8 +333,8 @@ var Client = (function () {
       this._stores[path].refetching = true;
       // we use the fetch method from the adapter
       return this.fetch(path, hash).then(function (remutable) {
+        // if we are not interested anymore, then dismiss
         if (_this4._stores[path] === void 0) {
-          // not interested anymore
           return;
         }
         if (__DEV__) {
@@ -348,10 +349,10 @@ var Client = (function () {
     value: function _upgrade(path, next) {
       if (__DEV__) {
         path.should.be.a.String;
-        (next instanceof _Remutable2['default'] || next instanceof _Remutable2['default'].Consumer).should.be['true'];
+        (next instanceof _remutable2['default'] || next instanceof _remutable2['default'].Consumer).should.be['true'];
       }
+      // if we are not interested anymore, then dismiss
       if (this._stores[path] === void 0) {
-        // not interested anymore
         return;
       }
       var _stores$path2 = this._stores[path];
@@ -360,8 +361,8 @@ var Client = (function () {
       var patches = _stores$path2.patches;
 
       var prev = engine.remutable;
+      // if we already have a more recent version
       if (prev.version >= next.version) {
-        // we already have a more recent version
         return;
       }
       // squash patches to create a single patch
@@ -385,7 +386,7 @@ var Client = (function () {
   return Client;
 })();
 
-Object.assign(Client, { Event: _Event.Event });
+Object.assign(Client, { Event: _ClientEvent.Event });
 
 exports['default'] = Client;
 module.exports = exports['default'];

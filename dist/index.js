@@ -1,22 +1,22 @@
 'use strict';
 
-var _interopRequireDefault = function (obj) { return obj && obj.__esModule ? obj : { 'default': obj }; };
-
 Object.defineProperty(exports, '__esModule', {
   value: true
 });
+
+function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
 
 var _Client = require('./Client');
 
 var _Client2 = _interopRequireDefault(_Client);
 
-var _Lifespan = require('lifespan');
+var _lifespan = require('lifespan');
 
-var _Lifespan2 = _interopRequireDefault(_Lifespan);
+var _lifespan2 = _interopRequireDefault(_lifespan);
 
-var _Remutable = require('remutable');
+var _remutable = require('remutable');
 
-var _Remutable2 = _interopRequireDefault(_Remutable);
+var _remutable2 = _interopRequireDefault(_remutable);
 
 var _Server = require('./Server');
 
@@ -36,7 +36,7 @@ if (__DEV__) {
 }
 exports['default'] = {
   Client: _Client2['default'],
-  Lifespan: _Lifespan2['default'],
-  Remutable: _Remutable2['default'],
+  Lifespan: _lifespan2['default'],
+  Remutable: _remutable2['default'],
   Server: _Server2['default'] };
 module.exports = exports['default'];

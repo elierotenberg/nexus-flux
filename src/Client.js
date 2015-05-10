@@ -3,18 +3,20 @@ import Remutable from 'remutable';
 const { Patch } = Remutable;
 import Lifespan from 'lifespan';
 import Store from './Store';
-import Server from './Server.Event'; // we just need this reference for typechecks
+// we just need this reference for typechecks
+import Server from './Server.Event';
 import { Event } from './Client.Event';
 
-/**
- * @abstract
- */
+// abstract
 class Client {
   constructor() {
     if(__DEV__) {
-      this.constructor.should.not.be.exactly(Client); // ensure abstract
-      this.fetch.should.not.be.exactly(Client.prototype.fetch); // ensure virtual
-      this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer); // ensure virtual
+      // ensure abstract
+      this.constructor.should.not.be.exactly(Client);
+      // ensure virtual
+      this.fetch.should.not.be.exactly(Client.prototype.fetch);
+      // ensure virtual
+      this.sendToServer.should.not.be.exactly(Client.prototype.sendToServer);
     }
     this.lifespan = new Lifespan();
     this._stores = {};
@@ -29,9 +31,7 @@ class Client {
     });
   }
 
-  /**
-   * @virtual
-   */
+  // virtual
   fetch(path, hash) {
     if(__DEV__) {
       path.should.be.a.String;
@@ -40,9 +40,7 @@ class Client {
     throw new TypeError('Virtual method invocation');
   }
 
-  /**
-   * @virtual
-   */
+  // virtual
   sendToServer(ev) {
     if(__DEV__) {
       ev.should.be.an.instanceOf(Client.Event);
@@ -149,7 +147,8 @@ class Client {
       this._stores[path] = {
         engine,
         producer: engine.createProducer(),
-        patches: {},         // initially we have no pending patches and we are not refetching
+        // initially we have no pending patches and we are not refetching
+        patches: {},
         refetching: false,
       };
       this._refetch(path, null);
@@ -169,7 +168,8 @@ class Client {
     delete this._stores[path];
   }
 
-  getStore(path, lifespan) { // returns a Store consumer
+  // returns a Store consumer
+  getStore(path, lifespan) {
     if(__DEV__) {
       path.should.be.a.String;
       lifespan.should.be.an.instanceOf(Lifespan);
@@ -198,18 +198,23 @@ class Client {
       path.should.be.a.String;
       patch.should.be.an.instanceOf(Patch);
     }
-    if(this._stores[path] === void 0) { // dismiss if we are not interested anymore
+    // dismiss if we are not interested anymore
+    if(this._stores[path] === void 0) {
       return null;
     }
     const { producer, patches, refetching } = this._stores[path];
     const { hash } = producer;
     const { source, target } = patch;
-    if(hash === source) { // if the patch applies to our current version, apply it now
+    // if the patch applies to our current version, apply it now
+    if(hash === source) {
       return producer.apply(patch);
-    } // we don't have a recent enough version, we need to refetch
-    if(!refetching) { // if we arent already refetching, request a newer version (atleast newer than target)
+    }
+    // we don't have a recent enough version, we need to refetch
+    // if we arent already refetching, request a newer version (atleast newer than target)
+    if(!refetching) {
       return this._refetch(path, target);
-    } // if we are already refetching, store the patch for later
+    }
+    // if we are already refetching, store the patch for later
     patches[source] = patch;
   }
 
@@ -233,7 +238,8 @@ class Client {
     this._stores[path].refetching = true;
     // we use the fetch method from the adapter
     return this.fetch(path, hash).then((remutable) => {
-      if(this._stores[path] === void 0) { // not interested anymore
+      // if we are not interested anymore, then dismiss
+      if(this._stores[path] === void 0) {
         return;
       }
       if(__DEV__) {
@@ -249,12 +255,14 @@ class Client {
       path.should.be.a.String;
       (next instanceof Remutable || next instanceof Remutable.Consumer).should.be.true;
     }
-    if(this._stores[path] === void 0) { // not interested anymore
+    // if we are not interested anymore, then dismiss
+    if(this._stores[path] === void 0) {
       return;
     }
     const { engine, producer, patches } = this._stores[path];
     const prev = engine.remutable;
-    if(prev.version >= next.version) { // we already have a more recent version
+    // if we already have a more recent version
+    if(prev.version >= next.version) {
       return;
     }
     // squash patches to create a single patch
