@@ -1,22 +1,22 @@
 'use strict';
 
-Object.defineProperty(exports, '__esModule', {
+var _inherits = require('babel-runtime/helpers/inherits')['default'];
+
+var _get = require('babel-runtime/helpers/get')['default'];
+
+var _createClass = require('babel-runtime/helpers/create-class')['default'];
+
+var _classCallCheck = require('babel-runtime/helpers/class-call-check')['default'];
+
+var _defineProperty = require('babel-runtime/helpers/define-property')['default'];
+
+var _Object$defineProperty = require('babel-runtime/core-js/object/define-property')['default'];
+
+var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
+
+_Object$defineProperty(exports, '__esModule', {
   value: true
 });
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-var _get = function get(_x5, _x6, _x7) { var _again = true; _function: while (_again) { desc = parent = getter = undefined; _again = false; var object = _x5,
-    property = _x6,
-    receiver = _x7; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x5 = parent; _x6 = property; _x7 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
-
-function _defineProperty(obj, key, value) { return Object.defineProperty(obj, key, { value: value, enumerable: true, configurable: true, writable: true }); }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; }
 
 var _2 = require('../');
 
@@ -24,7 +24,6 @@ var _remutable = require('remutable');
 
 var _remutable2 = _interopRequireDefault(_remutable);
 
-require('babel/polyfill');
 var _ = require('lodash');
 var should = require('should');
 var Promise = (global || window).Promise = require('bluebird');
@@ -54,7 +53,7 @@ var DEFAULT_SALT = '__KqsrQBNHfkTYQ8mWadEDwfKM';
 
 var WorkerClient = (function (_Client) {
   function WorkerClient(worker) {
-    var _this2 = this;
+    var _this = this;
 
     var salt = arguments[1] === undefined ? DEFAULT_SALT : arguments[1];
 
@@ -70,11 +69,11 @@ var WorkerClient = (function (_Client) {
     this._fetching = {};
     this._worker.addEventListener('message', this.receiveFromWorker);
     this.lifespan.onRelease(function () {
-      _.each(_this2._fetching, function (_ref) {
+      _.each(_this._fetching, function (_ref) {
         var reject = _ref.reject;
         return reject(new Error('Client released'));
       });
-      _this2._worker.removeEventListener('message', _this2.receiveFromWorker);
+      _this._worker.removeEventListener('message', _this.receiveFromWorker);
     });
   }
 
@@ -83,7 +82,7 @@ var WorkerClient = (function (_Client) {
   _createClass(WorkerClient, [{
     key: 'fetch',
     value: function fetch(path, hash) {
-      var _this3 = this;
+      var _this2 = this;
 
       if (this._fetching[path] === void 0) {
         this._fetching[path] = {
@@ -91,8 +90,8 @@ var WorkerClient = (function (_Client) {
           resolve: null,
           reject: null };
         this._fetching[path].promise = new Promise(function (resolve, reject) {
-          _this3._fetching[path].resolve = resolve;
-          _this3._fetching[path].reject = reject;
+          _this2._fetching[path].resolve = resolve;
+          _this2._fetching[path].reject = reject;
         });
         this._worker.postMessage(_defineProperty({}, this._salt, { t: FETCH, j: { hash: hash, path: path } }));
       }
@@ -161,7 +160,7 @@ var WorkerClient = (function (_Client) {
 
 var WorkerLink = (function (_Link) {
   function WorkerLink(self, stores) {
-    var _this4 = this;
+    var _this3 = this;
 
     var salt = arguments[2] === undefined ? DEFAULT_SALT : arguments[2];
 
@@ -180,9 +179,9 @@ var WorkerLink = (function (_Link) {
     this._salt = salt;
     this._self.addEventListener('message', this.receiveFromWorker);
     this.lifespan.onRelease(function () {
-      _this4._self.removeEventListener('message', _this4.receiveFromWorker);
-      _this4._self = null;
-      _this4._stores = null;
+      _this3._self.removeEventListener('message', _this3.receiveFromWorker);
+      _this3._self = null;
+      _this3._stores = null;
     });
   }
 
@@ -244,7 +243,7 @@ var WorkerLink = (function (_Link) {
 
 var WorkerServer = (function (_Server) {
   function WorkerServer() {
-    var _this5 = this;
+    var _this4 = this;
 
     var stores = arguments[0] === undefined ? {} : arguments[0];
     var salt = arguments[1] === undefined ? DEFAULT_SALT : arguments[1];
@@ -261,9 +260,9 @@ var WorkerServer = (function (_Server) {
     this._link = new WorkerLink(self, this._stores, this._salt);
     this.acceptLink(this._link);
     this.lifespan.onRelease(function () {
-      _this5._stores = null;
-      _this5._link.release();
-      _this5._link = null;
+      _this4._stores = null;
+      _this4._link.release();
+      _this4._link = null;
     });
   }
 

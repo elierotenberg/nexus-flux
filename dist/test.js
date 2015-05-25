@@ -1,6 +1,6 @@
 'use strict';
 
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
+var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
 
 var _lifespan = require('lifespan');
 
@@ -16,7 +16,6 @@ var _sha256 = require('sha256');
 
 var _sha2562 = _interopRequireDefault(_sha256);
 
-require('babel/polyfill');
 var _ = require('lodash');
 var should = require('should');
 var Promise = (global || window).Promise = require('bluebird');
@@ -59,7 +58,7 @@ _.defer(function () {
       var description = _ref.description;
       var ownerKey = _ref.ownerKey;
 
-      var item = { name: name, description: description, ownerHash: _sha2562['default'](ownerKey) };
+      var item = { name: name, description: description, ownerHash: (0, _sha2562['default'])(ownerKey) };
       if (todoList.get(name) !== void 0) {
         return;
       }
@@ -75,7 +74,7 @@ _.defer(function () {
       }
       var ownerHash = item.ownerHash;
 
-      if (_sha2562['default'](ownerKey) !== ownerHash) {
+      if ((0, _sha2562['default'])(ownerKey) !== ownerHash) {
         return;
       }
       server.dispatchUpdate('/todoList', todoList.set(name, void 0).commit());
@@ -96,7 +95,7 @@ _.defer(function () {
 
 // client main
 _.defer(function () {
-  var ownerKey = _sha2562['default']('' + Date.now() + ':' + _.random());
+  var ownerKey = (0, _sha2562['default'])('' + Date.now() + ':' + _.random());
   // subscribe to a store
   client.getStore('/clock', client.lifespan)
   // every time its updated (including when its first fetched), display the modified value (it is an Immutable.Map)

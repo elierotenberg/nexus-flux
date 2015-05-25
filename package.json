@@ -17,28 +17,29 @@
   },
   "homepage": "https://github.com/elierotenberg/nexus-flux",
   "devDependencies": {
-    "babel-eslint": "^3.0.1",
-    "del": "^1.1.1",
-    "eslint-plugin-react": "^2.2.0",
+    "babel-eslint": "^3.1.9",
+    "del": "^1.2.0",
+    "eslint-plugin-react": "^2.3.0",
     "gulp": "^3.8.11",
     "gulp-babel": "^5.1.0",
-    "gulp-eslint": "^0.11.1",
+    "gulp-eslint": "^0.12.0",
     "gulp-insert": "^0.4.0",
-    "gulp-jshint": "^1.10.0",
-    "gulp-plumber": "^1.0.0",
+    "gulp-jshint": "^1.11.0",
+    "gulp-plumber": "^1.0.1",
     "gulp-sourcemaps": "^1.5.2",
     "gulp-util": "^3.0.4",
     "sha256": "^0.2.0"
   },
   "dependencies": {
     "asap": "^2.0.3",
-    "babel": "^5.1.13",
-    "bluebird": "^2.9.24",
-    "immutable": "^3.7.2",
-    "lifespan": "^3.0.0",
-    "lodash": "^3.7.0",
-    "nexus-events": "^2.0.0",
-    "remutable": "^1.0.0",
-    "should": "^6.0.1"
+    "babel": "^5.4.7",
+    "babel-runtime": "^5.4.7",
+    "bluebird": "^2.9.26",
+    "immutable": "^3.7.3",
+    "lifespan": "^3.1.0",
+    "lodash": "^3.9.2",
+    "nexus-events": "^2.1.0",
+    "remutable": "^1.1.0",
+    "should": "^6.0.3"
   }
 }
