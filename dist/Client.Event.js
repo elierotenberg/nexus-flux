@@ -1,20 +1,21 @@
 'use strict';
 
-Object.defineProperty(exports, '__esModule', {
+var _createClass = require('babel-runtime/helpers/create-class')['default'];
+
+var _classCallCheck = require('babel-runtime/helpers/class-call-check')['default'];
+
+var _inherits = require('babel-runtime/helpers/inherits')['default'];
+
+var _get = require('babel-runtime/helpers/get')['default'];
+
+var _Object$defineProperty = require('babel-runtime/core-js/object/define-property')['default'];
+
+var _Object$assign = require('babel-runtime/core-js/object/assign')['default'];
+
+_Object$defineProperty(exports, '__esModule', {
   value: true
 });
 
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { desc = parent = getter = undefined; _again = false; var object = _x,
-    property = _x2,
-    receiver = _x3; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-function _inherits(subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-require('babel/polyfill');
 var _ = require('lodash');
 var should = require('should');
 var Promise = (global || window).Promise = require('bluebird');
@@ -36,7 +37,7 @@ var Event = (function () {
       this.constructor.should.have.property('fromJS').which.is.a.Function;
       this.constructor.should.have.property('t').which.is.a.Function;
     }
-    Object.assign(this, {
+    _Object$assign(this, {
       _json: null,
       _js: null });
   }
@@ -84,7 +85,7 @@ var Subscribe = (function (_Event) {
       path.should.be.a.String;
     }
     _get(Object.getPrototypeOf(Subscribe.prototype), 'constructor', this).call(this);
-    Object.assign(this, { path: path });
+    _Object$assign(this, { path: path });
   }
 
   _inherits(Subscribe, _Event);
@@ -121,7 +122,7 @@ var Unsubscribe = (function (_Event2) {
       path.should.be.a.String;
     }
     _get(Object.getPrototypeOf(Unsubscribe.prototype), 'constructor', this).call(this);
-    Object.assign(this, { path: path });
+    _Object$assign(this, { path: path });
   }
 
   _inherits(Unsubscribe, _Event2);
@@ -160,7 +161,7 @@ var Action = (function (_Event3) {
       params.should.be.an.Object;
     }
     _get(Object.getPrototypeOf(Action.prototype), 'constructor', this).call(this);
-    Object.assign(this, { path: path, params: params });
+    _Object$assign(this, { path: path, params: params });
   }
 
   _inherits(Action, _Event3);

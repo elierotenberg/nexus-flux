@@ -1,22 +1,21 @@
 'use strict';
 
-Object.defineProperty(exports, '__esModule', {
+var _inherits = require('babel-runtime/helpers/inherits')['default'];
+
+var _get = require('babel-runtime/helpers/get')['default'];
+
+var _createClass = require('babel-runtime/helpers/create-class')['default'];
+
+var _classCallCheck = require('babel-runtime/helpers/class-call-check')['default'];
+
+var _Object$defineProperty = require('babel-runtime/core-js/object/define-property')['default'];
+
+_Object$defineProperty(exports, '__esModule', {
   value: true
 });
 
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-var _get = function get(_x2, _x3, _x4) { var _again = true; _function: while (_again) { desc = parent = getter = undefined; _again = false; var object = _x2,
-    property = _x3,
-    receiver = _x4; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x2 = parent; _x3 = property; _x4 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; }
-
 var _2 = require('../');
 
-require('babel/polyfill');
 var _ = require('lodash');
 var should = require('should');
 var Promise = (global || window).Promise = require('bluebird');
@@ -35,7 +34,7 @@ var _LocalLink = undefined;
 
 var LocalClient = (function (_Client) {
   function LocalClient(server) {
-    var _this2 = this;
+    var _this = this;
 
     _classCallCheck(this, LocalClient);
 
@@ -47,8 +46,8 @@ var LocalClient = (function (_Client) {
     this._link = new _LocalLink(this);
     this._server.acceptLink(this._link);
     this.lifespan.onRelease(function () {
-      _this2._link.lifespan.release();
-      _this2._link = null;
+      _this._link.lifespan.release();
+      _this._link = null;
     });
   }
 
@@ -65,12 +64,12 @@ var LocalClient = (function (_Client) {
     // implements
     // ignore hash
     value: function fetch(path) {
-      var _this3 = this;
+      var _this2 = this;
 
       // fail if there is not such published path
       return Promise['try'](function () {
-        _this3._server.stores.should.have.property(path);
-        return _this3._server.stores[path];
+        _this2._server.stores.should.have.property(path);
+        return _this2._server.stores[path];
       });
     }
   }]);
@@ -80,7 +79,7 @@ var LocalClient = (function (_Client) {
 
 var LocalLink = (function (_Link) {
   function LocalLink(client) {
-    var _this4 = this;
+    var _this3 = this;
 
     _classCallCheck(this, LocalLink);
 
@@ -91,7 +90,7 @@ var LocalLink = (function (_Link) {
     this._client = client;
     this.lifespan.onRelease(function () {
       client.lifespan.release();
-      _this4._client = null;
+      _this3._client = null;
     });
   }
 
@@ -111,7 +110,7 @@ _LocalLink = LocalLink;
 
 var LocalServer = (function (_Server) {
   function LocalServer() {
-    var _this5 = this;
+    var _this4 = this;
 
     var stores = arguments[0] === undefined ? {} : arguments[0];
 
@@ -123,7 +122,7 @@ var LocalServer = (function (_Server) {
     _get(Object.getPrototypeOf(LocalServer.prototype), 'constructor', this).call(this);
     this.stores = stores;
     this.lifespan.onRelease(function () {
-      return _this5.stores = null;
+      return _this4.stores = null;
     });
   }
 

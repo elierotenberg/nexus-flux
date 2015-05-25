@@ -1,20 +1,22 @@
 'use strict';
 
-Object.defineProperty(exports, '__esModule', {
+var _createClass = require('babel-runtime/helpers/create-class')['default'];
+
+var _classCallCheck = require('babel-runtime/helpers/class-call-check')['default'];
+
+var _inherits = require('babel-runtime/helpers/inherits')['default'];
+
+var _get = require('babel-runtime/helpers/get')['default'];
+
+var _Object$defineProperty = require('babel-runtime/core-js/object/define-property')['default'];
+
+var _Object$assign = require('babel-runtime/core-js/object/assign')['default'];
+
+var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
+
+_Object$defineProperty(exports, '__esModule', {
   value: true
 });
-
-var _get = function get(_x, _x2, _x3) { var _again = true; _function: while (_again) { desc = parent = getter = undefined; _again = false; var object = _x,
-    property = _x2,
-    receiver = _x3; var desc = Object.getOwnPropertyDescriptor(object, property); if (desc === undefined) { var parent = Object.getPrototypeOf(object); if (parent === null) { return undefined; } else { _x = parent; _x2 = property; _x3 = receiver; _again = true; continue _function; } } else if ('value' in desc) { return desc.value; } else { var getter = desc.get; if (getter === undefined) { return undefined; } return getter.call(receiver); } } };
-
-var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
-
-function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { 'default': obj }; }
-
-function _inherits(subClass, superClass) { if (typeof superClass !== 'function' && superClass !== null) { throw new TypeError('Super expression must either be null or a function, not ' + typeof superClass); } subClass.prototype = Object.create(superClass && superClass.prototype, { constructor: { value: subClass, enumerable: false, writable: true, configurable: true } }); if (superClass) subClass.__proto__ = superClass; }
-
-function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
 var _remutable = require('remutable');
 
@@ -34,7 +36,6 @@ var _ClientEvent2 = _interopRequireDefault(_ClientEvent);
 
 var _ServerEvent = require('./Server.Event');
 
-require('babel/polyfill');
 var _ = require('lodash');
 var should = require('should');
 var Promise = (global || window).Promise = require('bluebird');
@@ -53,7 +54,7 @@ var _Server = undefined;
 
 var Link = (function () {
   function Link() {
-    var _this2 = this;
+    var _this = this;
 
     _classCallCheck(this, Link);
 
@@ -67,7 +68,7 @@ var Link = (function () {
     // will be set by the server; should be called when received client events, to forward them to the server
     this.receiveFromClient = null;
     this.lifespan.onRelease(function () {
-      _this2.receiveFromClient = null;
+      _this.receiveFromClient = null;
     });
   }
 
@@ -109,7 +110,7 @@ var Link = (function () {
 
 var Server = (function (_EventEmitter) {
   function Server() {
-    var _this3 = this;
+    var _this2 = this;
 
     _classCallCheck(this, Server);
 
@@ -118,17 +119,17 @@ var Server = (function (_EventEmitter) {
     this._links = {};
     this._subscriptions = {};
     this.lifespan.onRelease(function () {
-      _.each(_this3._links, function (_ref, linkID) {
+      _.each(_this2._links, function (_ref, linkID) {
         var link = _ref.link;
         var subscriptions = _ref.subscriptions;
 
         _.each(subscriptions, function (path) {
-          return _this3.unsubscribe(linkID, path);
+          return _this2.unsubscribe(linkID, path);
         });
         link.lifespan.release();
       });
-      _this3._links = null;
-      _this3._subscriptions = null;
+      _this2._links = null;
+      _this2._subscriptions = null;
     });
   }
 
@@ -137,20 +138,20 @@ var Server = (function (_EventEmitter) {
   _createClass(Server, [{
     key: 'dispatchAction',
     value: function dispatchAction(path, params) {
-      var _this4 = this;
+      var _this3 = this;
 
       return Promise['try'](function () {
         if (__DEV__) {
           path.should.be.a.String;
           params.should.be.an.Object;
         }
-        _this4.emit('action', { path: path, params: params });
+        _this3.emit('action', { path: path, params: params });
       });
     }
   }, {
     key: 'dispatchUpdate',
     value: function dispatchUpdate(path, patch) {
-      var _this5 = this;
+      var _this4 = this;
 
       if (__DEV__) {
         path.should.be.a.String;
@@ -159,7 +160,7 @@ var Server = (function (_EventEmitter) {
       if (this._subscriptions[path] !== void 0) {
         (function () {
           var ev = new Server.Event.Update({ path: path, patch: patch });
-          _.each(_this5._subscriptions[path], function (link) {
+          _.each(_this4._subscriptions[path], function (link) {
             link.receiveFromServer(ev);
           });
         })();
@@ -203,7 +204,7 @@ var Server = (function (_EventEmitter) {
   }, {
     key: 'acceptLink',
     value: function acceptLink(link) {
-      var _this6 = this;
+      var _this5 = this;
 
       if (__DEV__) {
         link.should.be.an.instanceOf(Link);
@@ -214,13 +215,13 @@ var Server = (function (_EventEmitter) {
         link: link,
         subscriptions: {} };
       link.acceptFromServer(function (ev) {
-        return _this6.receiveFromLink(linkID, ev);
+        return _this5.receiveFromLink(linkID, ev);
       });
       link.lifespan.onRelease(function () {
-        _.each(_this6._links[linkID].subscriptions, function (path) {
-          return _this6.unsubscribe(linkID, path);
+        _.each(_this5._links[linkID].subscriptions, function (path) {
+          return _this5.unsubscribe(linkID, path);
         });
-        delete _this6._links[linkID];
+        delete _this5._links[linkID];
       });
     }
   }, {
@@ -251,7 +252,7 @@ var Server = (function (_EventEmitter) {
 
 _Server = Server;
 
-Object.assign(Server, { Event: _ServerEvent.Event, Link: Link });
+_Object$assign(Server, { Event: _ServerEvent.Event, Link: Link });
 
 exports['default'] = Server;
 module.exports = exports['default'];
