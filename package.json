@@ -36,10 +36,10 @@
     "babel-runtime": "^5.4.7",
     "bluebird": "^2.9.26",
     "immutable": "^3.7.3",
-    "lifespan": "^3.0.0",
+    "lifespan": "^3.1.0",
     "lodash": "^3.9.2",
-    "nexus-events": "^2.0.0",
-    "remutable": "^1.0.1",
+    "nexus-events": "^2.1.0",
+    "remutable": "^1.1.0",
     "should": "^6.0.3"
   }
 }
