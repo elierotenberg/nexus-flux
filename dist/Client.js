@@ -6,6 +6,8 @@ var _classCallCheck = require('babel-runtime/helpers/class-call-check')['default
 
 var _Object$defineProperty = require('babel-runtime/core-js/object/define-property')['default'];
 
+var _Object$keys = require('babel-runtime/core-js/object/keys')['default'];
+
 var _Object$assign = require('babel-runtime/core-js/object/assign')['default'];
 
 var _interopRequireDefault = require('babel-runtime/helpers/interop-require-default')['default'];
@@ -280,6 +282,23 @@ var Client = (function () {
       this.sendToServer(new Client.Event.Action({ path: path, params: params }));
     }
   }, {
+    key: 'forceResync',
+    value: function forceResync() {
+      var _this4 = this;
+
+      _Object$keys(this._stores).forEach(function (path) {
+        var _stores$path = _this4._stores[path];
+        var producer = _stores$path.producer;
+        var refetching = _stores$path.refetching;
+        var hash = producer.hash;
+
+        if (!refetching) {
+          _this4._refetch(path, hash);
+        }
+      });
+      return this;
+    }
+  }, {
     key: '_update',
     value: function _update(path, patch) {
       if (__DEV__) {
@@ -290,10 +309,10 @@ var Client = (function () {
       if (this._stores[path] === void 0) {
         return null;
       }
-      var _stores$path = this._stores[path];
-      var producer = _stores$path.producer;
-      var patches = _stores$path.patches;
-      var refetching = _stores$path.refetching;
+      var _stores$path2 = this._stores[path];
+      var producer = _stores$path2.producer;
+      var patches = _stores$path2.patches;
+      var refetching = _stores$path2.refetching;
       var hash = producer.hash;
       var source = patch.source;
       var target = patch.target;
@@ -326,7 +345,7 @@ var Client = (function () {
   }, {
     key: '_refetch',
     value: function _refetch(path, hash) {
-      var _this4 = this;
+      var _this5 = this;
 
       if (__DEV__) {
         path.should.be.a.String;
@@ -337,14 +356,14 @@ var Client = (function () {
       // we use the fetch method from the adapter
       return this.fetch(path, hash).then(function (remutable) {
         // if we are not interested anymore, then dismiss
-        if (_this4._stores[path] === void 0) {
+        if (_this5._stores[path] === void 0) {
           return;
         }
         if (__DEV__) {
-          _this4._stores[path].refetching.should.be['true'];
+          _this5._stores[path].refetching.should.be['true'];
         }
-        _this4._stores[path].refetching = false;
-        _this4._upgrade(path, remutable);
+        _this5._stores[path].refetching = false;
+        _this5._upgrade(path, remutable);
       });
     }
   }, {
@@ -358,10 +377,10 @@ var Client = (function () {
       if (this._stores[path] === void 0) {
         return;
       }
-      var _stores$path2 = this._stores[path];
-      var engine = _stores$path2.engine;
-      var producer = _stores$path2.producer;
-      var patches = _stores$path2.patches;
+      var _stores$path3 = this._stores[path];
+      var engine = _stores$path3.engine;
+      var producer = _stores$path3.producer;
+      var patches = _stores$path3.patches;
 
       var prev = engine.remutable;
       // if we already have a more recent version

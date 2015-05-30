@@ -193,6 +193,17 @@ class Client {
     this.sendToServer(new Client.Event.Action({ path, params }));
   }
 
+  forceResync() {
+    Object.keys(this._stores).forEach((path) => {
+      const { producer, refetching } = this._stores[path];
+      const { hash } = producer;
+      if(!refetching) {
+        this._refetch(path, hash);
+      }
+    });
+    return this;
+  }
+
   _update(path, patch) {
     if(__DEV__) {
       path.should.be.a.String;

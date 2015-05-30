@@ -58,7 +58,7 @@ _.defer(function () {
       var description = _ref.description;
       var ownerKey = _ref.ownerKey;
 
-      var item = { name: name, description: description, ownerHash: (0, _sha2562['default'])(ownerKey) };
+      var item = { name: name, description: description, ownerHash: _sha2562['default'](ownerKey) };
       if (todoList.get(name) !== void 0) {
         return;
       }
@@ -74,7 +74,7 @@ _.defer(function () {
       }
       var ownerHash = item.ownerHash;
 
-      if ((0, _sha2562['default'])(ownerKey) !== ownerHash) {
+      if (_sha2562['default'](ownerKey) !== ownerHash) {
         return;
       }
       server.dispatchUpdate('/todoList', todoList.set(name, void 0).commit());
@@ -95,7 +95,7 @@ _.defer(function () {
 
 // client main
 _.defer(function () {
-  var ownerKey = (0, _sha2562['default'])('' + Date.now() + ':' + _.random());
+  var ownerKey = _sha2562['default']('' + Date.now() + ':' + _.random());
   // subscribe to a store
   client.getStore('/clock', client.lifespan)
   // every time its updated (including when its first fetched), display the modified value (it is an Immutable.Map)

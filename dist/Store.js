@@ -127,7 +127,7 @@ var Consumer = (function () {
       this._onUpdateHandlers = 0;
       this._onDeleteHandlers = 0;
       // check that handlers are immediatly set
-      (0, _asap2['default'])(function () {
+      _asap2['default'](function () {
         try {
           _this2._onUpdateHandlers.should.be.above(0);
           _this2._onDeleteHandlers.should.be.above(0);
