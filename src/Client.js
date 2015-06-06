@@ -103,7 +103,7 @@ class Client {
     if(__DEV__) {
       path.should.be.a.String;
     }
-    if(this._injected[path] !== void 0) {
+    if(this.isInjecting && this._injected[path] !== void 0) {
       return this._injected[path];
     }
     return null;
@@ -143,7 +143,7 @@ class Client {
     }
     if(this._stores[path] === void 0) {
       this.sendToServer(new Client.Event.Subscribe({ path }));
-      const engine = new Store.Engine(this.isInjecting ? this.getInjected(path) : void 0);
+      const engine = new Store.Engine(this.getInjected(path) || void 0);
       this._stores[path] = {
         engine,
         producer: engine.createProducer(),
