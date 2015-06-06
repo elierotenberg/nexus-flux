@@ -39,7 +39,8 @@ var Event = (function () {
     }
     _Object$assign(this, {
       _json: null,
-      _js: null });
+      _js: null
+    });
   }
 
   _createClass(Event, [{
@@ -48,7 +49,8 @@ var Event = (function () {
       if (this._js === null) {
         this._js = {
           t: this.constructor.t(),
-          j: this._toJS() };
+          j: this._toJS()
+        };
       }
       return this._js;
     }
@@ -171,7 +173,8 @@ var Action = (function (_Event3) {
     value: function _toJS() {
       return {
         p: this.path,
-        a: this.params };
+        a: this.params
+      };
     }
   }], [{
     key: 't',
@@ -186,7 +189,8 @@ var Action = (function (_Event3) {
 
       return new Action({
         path: p,
-        params: a });
+        params: a
+      });
     }
   }]);
 

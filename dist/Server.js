@@ -213,7 +213,8 @@ var Server = (function (_EventEmitter) {
       var linkID = _.uniqueId();
       this._links[linkID] = {
         link: link,
-        subscriptions: {} };
+        subscriptions: {}
+      };
       link.acceptFromServer(function (ev) {
         return _this5.receiveFromLink(linkID, ev);
       });

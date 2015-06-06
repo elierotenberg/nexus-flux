@@ -39,5 +39,6 @@ exports['default'] = {
   Client: _Client2['default'],
   Lifespan: _lifespan2['default'],
   Remutable: _remutable2['default'],
-  Server: _Server2['default'] };
+  Server: _Server2['default']
+};
 module.exports = exports['default'];

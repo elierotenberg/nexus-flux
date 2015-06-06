@@ -135,5 +135,6 @@ _LocalServer = LocalServer;
 
 exports['default'] = {
   Client: LocalClient,
-  Server: LocalServer };
+  Server: LocalServer
+};
 module.exports = exports['default'];

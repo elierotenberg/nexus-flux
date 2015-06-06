@@ -60,7 +60,8 @@ var Producer = (function () {
     }
     _Object$assign(this, {
       _engine: engine,
-      lifespan: new _lifespan2['default']() });
+      lifespan: new _lifespan2['default']()
+    });
     _.bindAll(this, ['get', 'unset', 'set']);
     // proxy getters to engine.remutableProducers
     ['head', 'working', 'hash', 'version'].forEach(function (p) {
@@ -68,7 +69,8 @@ var Producer = (function () {
         enumerable: true,
         get: function get() {
           return engine.remutableProducer[p];
-        } });
+        }
+      });
     });
     // proxy methods to engine.remutableProducers
     ['rollback', 'match'].forEach(function (m) {
@@ -120,14 +122,15 @@ var Consumer = (function () {
     }
     _Object$assign(this, {
       _engine: engine,
-      lifespan: new _lifespan2['default']() });
+      lifespan: new _lifespan2['default']()
+    });
     _.bindAll(this, ['onUpdate', 'onDelete']);
 
     if (__DEV__) {
       this._onUpdateHandlers = 0;
       this._onDeleteHandlers = 0;
       // check that handlers are immediatly set
-      _asap2['default'](function () {
+      (0, _asap2['default'])(function () {
         try {
           _this2._onUpdateHandlers.should.be.above(0);
           _this2._onDeleteHandlers.should.be.above(0);
@@ -139,11 +142,6 @@ var Consumer = (function () {
   }
 
   _createClass(Consumer, [{
-    key: 'value',
-    get: function () {
-      return this._engine.remutableConsumer.head;
-    }
-  }, {
     key: 'onUpdate',
     value: function onUpdate(fn) {
       if (__DEV__) {
@@ -166,6 +164,11 @@ var Consumer = (function () {
         this._onDeleteHandlers = this._onDeleteHandlers + 1;
       }
       return this;
+    }
+  }, {
+    key: 'value',
+    get: function () {
+      return this._engine.remutableConsumer.head;
     }
   }]);
 

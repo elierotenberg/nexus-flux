@@ -41,7 +41,8 @@ var Event = (function () {
     }
     _Object$assign(this, {
       _json: null,
-      _js: null });
+      _js: null
+    });
   }
 
   _createClass(Event, [{
@@ -50,7 +51,8 @@ var Event = (function () {
       if (this._js === null) {
         this._js = {
           t: this.constructor.t(),
-          j: this._toJS() };
+          j: this._toJS()
+        };
       }
       return this._js;
     }
@@ -99,7 +101,8 @@ var Update = (function (_Event) {
     value: function _toJS() {
       return {
         p: this.path,
-        u: this.patch.toJS() };
+        u: this.patch.toJS()
+      };
     }
   }], [{
     key: 't',

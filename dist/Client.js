@@ -104,11 +104,6 @@ var Client = (function () {
       throw new TypeError('Virtual method invocation');
     }
   }, {
-    key: 'isPrefetching',
-    get: function () {
-      return this._prefetched !== null;
-    }
-  }, {
     key: 'getPrefetched',
     value: function getPrefetched(path) {
       if (__DEV__) {
@@ -152,7 +147,8 @@ var Client = (function () {
         (function () {
           var prefetched = {
             promise: null,
-            head: null };
+            head: null
+          };
           prefetched.promise = _this2.fetch(path, null).then(function (_ref2) {
             var head = _ref2.head;
             return prefetched.head = head;
@@ -165,17 +161,12 @@ var Client = (function () {
       return this._prefetched[path];
     }
   }, {
-    key: 'isInjecting',
-    get: function () {
-      return this._injected !== null;
-    }
-  }, {
     key: 'getInjected',
     value: function getInjected(path) {
       if (__DEV__) {
         path.should.be.a.String;
       }
-      if (this._injected[path] !== void 0) {
+      if (this.isInjecting && this._injected[path] !== void 0) {
         return this._injected[path];
       }
       return null;
@@ -221,13 +212,14 @@ var Client = (function () {
       }
       if (this._stores[path] === void 0) {
         this.sendToServer(new Client.Event.Subscribe({ path: path }));
-        var engine = new _Store2['default'].Engine(this.isInjecting ? this.getInjected(path) : void 0);
+        var engine = new _Store2['default'].Engine(this.getInjected(path) || void 0);
         this._stores[path] = {
           engine: engine,
           producer: engine.createProducer(),
           // initially we have no pending patches and we are not refetching
           patches: {},
-          refetching: false };
+          refetching: false
+        };
         this._refetch(path, null);
       }
       return this._stores[path];
@@ -402,6 +394,16 @@ var Client = (function () {
         }
       });
       producer.apply(squash);
+    }
+  }, {
+    key: 'isPrefetching',
+    get: function () {
+      return this._prefetched !== null;
+    }
+  }, {
+    key: 'isInjecting',
+    get: function () {
+      return this._injected !== null;
     }
   }]);
 

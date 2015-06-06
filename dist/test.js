@@ -44,7 +44,8 @@ client.lifespan.onRelease(function () {
 _.defer(function () {
   // initialize several stores
   var clock = stores['/clock'] = new _remutable2['default']({
-    date: Date.now() });
+    date: Date.now()
+  });
   var todoList = stores['/todoList'] = new _remutable2['default']({});
 
   // update clock every 500ms
@@ -58,7 +59,7 @@ _.defer(function () {
       var description = _ref.description;
       var ownerKey = _ref.ownerKey;
 
-      var item = { name: name, description: description, ownerHash: _sha2562['default'](ownerKey) };
+      var item = { name: name, description: description, ownerHash: (0, _sha2562['default'])(ownerKey) };
       if (todoList.get(name) !== void 0) {
         return;
       }
@@ -74,11 +75,12 @@ _.defer(function () {
       }
       var ownerHash = item.ownerHash;
 
-      if (_sha2562['default'](ownerKey) !== ownerHash) {
+      if ((0, _sha2562['default'])(ownerKey) !== ownerHash) {
         return;
       }
       server.dispatchUpdate('/todoList', todoList.set(name, void 0).commit());
-    } };
+    }
+  };
 
   server.on('action', function (_ref3) {
     var path = _ref3.path;
@@ -95,7 +97,7 @@ _.defer(function () {
 
 // client main
 _.defer(function () {
-  var ownerKey = _sha2562['default']('' + Date.now() + ':' + _.random());
+  var ownerKey = (0, _sha2562['default'])('' + Date.now() + ':' + _.random());
   // subscribe to a store
   client.getStore('/clock', client.lifespan)
   // every time its updated (including when its first fetched), display the modified value (it is an Immutable.Map)

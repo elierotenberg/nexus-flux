@@ -88,7 +88,8 @@ var WorkerClient = (function (_Client) {
         this._fetching[path] = {
           promise: null,
           resolve: null,
-          reject: null };
+          reject: null
+        };
         this._fetching[path].promise = new Promise(function (resolve, reject) {
           _this2._fetching[path].resolve = resolve;
           _this2._fetching[path].reject = reject;
@@ -275,5 +276,6 @@ var WorkerServer = (function (_Server) {
 
 exports['default'] = {
   Client: WorkerClient,
-  Server: WorkerServer };
+  Server: WorkerServer
+};
 module.exports = exports['default'];
