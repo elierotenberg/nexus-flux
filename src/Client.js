@@ -198,7 +198,7 @@ class Client {
       const { producer, refetching } = this._stores[path];
       const { hash } = producer;
       if(!refetching) {
-        this._refetch(path, hash);
+        this._refetch(path, hash, { forceResync: true });
       }
     });
     return this;
@@ -240,7 +240,7 @@ class Client {
     producer.delete();
   }
 
-  _refetch(path, hash) {
+  _refetch(path, hash, { forceResync = false } = {}) {
     if(__DEV__) {
       path.should.be.a.String;
       (hash === null || _.isNumber(hash)).should.be.true;
@@ -257,11 +257,11 @@ class Client {
         this._stores[path].refetching.should.be.true;
       }
       this._stores[path].refetching = false;
-      this._upgrade(path, remutable);
+      this._upgrade(path, remutable, { forceResync });
     });
   }
 
-  _upgrade(path, next) {
+  _upgrade(path, next, { forceResync = false } = {}) {
     if(__DEV__) {
       path.should.be.a.String;
       (next instanceof Remutable || next instanceof Remutable.Consumer).should.be.true;
@@ -272,8 +272,8 @@ class Client {
     }
     const { engine, producer, patches } = this._stores[path];
     const prev = engine.remutable;
-    // if we already have a more recent version
-    if(prev.version >= next.version) {
+    // if we already have a more recent version and this resync isn't forced
+    if(!forceResync || prev.version >= next.version) {
       return;
     }
     // squash patches to create a single patch

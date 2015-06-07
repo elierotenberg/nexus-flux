@@ -83,6 +83,9 @@ _.defer(() => {
   });
   // dispatch some actions
   client.dispatchAction('/addItem', { name: 'Harder', description: 'Code harder', ownerKey });
+  // force resync
+  client.forceResync();
+
   client.dispatchAction('/addItem', { name: 'Better', description: 'Code better', ownerKey });
   client.lifespan
   // add a new item in 1000ms

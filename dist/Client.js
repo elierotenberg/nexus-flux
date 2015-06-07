@@ -285,7 +285,7 @@ var Client = (function () {
         var hash = producer.hash;
 
         if (!refetching) {
-          _this4._refetch(path, hash);
+          _this4._refetch(path, hash, { forceResync: true });
         }
       });
       return this;
@@ -339,6 +339,11 @@ var Client = (function () {
     value: function _refetch(path, hash) {
       var _this5 = this;
 
+      var _ref3 = arguments[2] === undefined ? {} : arguments[2];
+
+      var _ref3$forceResync = _ref3.forceResync;
+      var forceResync = _ref3$forceResync === undefined ? false : _ref3$forceResync;
+
       if (__DEV__) {
         path.should.be.a.String;
         (hash === null || _.isNumber(hash)).should.be['true'];
@@ -355,12 +360,17 @@ var Client = (function () {
           _this5._stores[path].refetching.should.be['true'];
         }
         _this5._stores[path].refetching = false;
-        _this5._upgrade(path, remutable);
+        _this5._upgrade(path, remutable, { forceResync: forceResync });
       });
     }
   }, {
     key: '_upgrade',
     value: function _upgrade(path, next) {
+      var _ref4 = arguments[2] === undefined ? {} : arguments[2];
+
+      var _ref4$forceResync = _ref4.forceResync;
+      var forceResync = _ref4$forceResync === undefined ? false : _ref4$forceResync;
+
       if (__DEV__) {
         path.should.be.a.String;
         (next instanceof _remutable2['default'] || next instanceof _remutable2['default'].Consumer).should.be['true'];
@@ -375,8 +385,8 @@ var Client = (function () {
       var patches = _stores$path3.patches;
 
       var prev = engine.remutable;
-      // if we already have a more recent version
-      if (prev.version >= next.version) {
+      // if we already have a more recent version and this resync isn't forced
+      if (!forceResync || prev.version >= next.version) {
         return;
       }
       // squash patches to create a single patch
@@ -386,8 +396,8 @@ var Client = (function () {
       }
       var version = squash.to.v;
       // clean old patches
-      _.each(patches, function (_ref3, source) {
-        var to = _ref3.to;
+      _.each(patches, function (_ref5, source) {
+        var to = _ref5.to;
 
         if (to.v <= version) {
           delete patches[source];
