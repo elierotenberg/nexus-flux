@@ -386,7 +386,7 @@ var Client = (function () {
 
       var prev = engine.remutable;
       // if we already have a more recent version and this resync isn't forced
-      if (!forceResync || prev.version >= next.version) {
+      if (!forceResync && prev.version >= next.version) {
         return;
       }
       // squash patches to create a single patch
