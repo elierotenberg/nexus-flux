@@ -39,7 +39,7 @@
     "lifespan": "^3.1.0",
     "lodash": "^3.9.2",
     "nexus-events": "^2.1.0",
-    "remutable": "^1.1.0",
+    "remutable": "^1.1.1",
     "should": "^6.0.3"
   }
 }
