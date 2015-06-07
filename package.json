@@ -1,6 +1,6 @@
 {
   "name": "nexus-flux",
-  "version": "3.4.1",
+  "version": "3.4.2",
   "description": "",
   "main": "dist/index.js",
   "scripts": {
