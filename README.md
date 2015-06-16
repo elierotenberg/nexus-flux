@@ -10,7 +10,6 @@ Component logic         Adapter               Adapter               Global logic
     +-- Store.onUpdate  <--+--- Server.Events <--+------ Store.update ---+
 ```
 
-
 Local Nexus Flux Diagram
 ```
 Component #1 <---+
@@ -209,3 +208,7 @@ const server = new Server(8080);
 If you think of a communication channel where Flux would be relevant, you can implement your own adapter.
 
 The LocalAdapter and WebworkerAdapter sources should provide helpful guidance for doing so.
+
+### Usage
+
+This module is written in ES6/7. You will need `babel` to run it.

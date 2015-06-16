@@ -1,3 +1,6 @@
+import 'should';
+import _ from 'lodash';
+const __DEV__ = process.env.NODE_ENV === 'development';
 import { Client, Server } from '../';
 const { Link } = Server;
 import Remutable from 'remutable';

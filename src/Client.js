@@ -1,3 +1,6 @@
+import 'should';
+import _ from 'lodash';
+const __DEV__ = process.env.NODE_ENV === 'development';
 import Immutable from 'immutable';
 import Remutable from 'remutable';
 const { Patch } = Remutable;
@@ -83,7 +86,7 @@ class Client {
       this.isPrefetching.should.be.true;
     }
     if(this._prefetched[path] === void 0) {
-      let prefetched = {
+      const prefetched = {
         promise: null,
         head: null,
       };

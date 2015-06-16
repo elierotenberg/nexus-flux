@@ -1,9 +1,13 @@
+import 'should';
+import _ from 'lodash';
+const __DEV__ = process.env.NODE_ENV === 'development';
 import Remutable from 'remutable';
 import Lifespan from 'lifespan';
 import { EventEmitter } from 'nexus-events';
 // we just need this reference for typechecks
 import Client from './Client.Event';
 import { Event } from './Server.Event';
+import Promise from 'bluebird';
 
 let _Server;
 

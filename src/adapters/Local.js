@@ -1,5 +1,8 @@
+import 'should';
+const __DEV__ = process.env.NODE_ENV === 'development';
 import { Client, Server } from '../';
 const { Link } = Server;
+import Promise from 'bluebird';
 
 let _LocalServer;
 let _LocalLink;

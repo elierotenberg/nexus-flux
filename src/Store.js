@@ -1,3 +1,6 @@
+import 'should';
+import _ from 'lodash';
+const __DEV__ = process.env.NODE_ENV === 'development';
 import asap from 'asap';
 import { EventEmitter } from 'nexus-events';
 import Lifespan from 'lifespan';

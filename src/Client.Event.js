@@ -1,3 +1,6 @@
+import 'should';
+const __DEV__ = process.env.NODE_ENV === 'development';
+
 class Event {
   constructor() {
     if(__DEV__) {

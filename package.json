@@ -1,45 +1,38 @@
 {
   "name": "nexus-flux",
-  "version": "3.4.4",
+  "version": "3.5.0",
   "description": "",
-  "main": "dist/index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "license": "MIT",
+  "author": "Elie Rotenberg <elie@rotenberg.io>",
+  "main": "src/index.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/elierotenberg/nexus-flux.git"
   },
-  "author": "Elie Rotenberg <elie@rotenberg.io>",
-  "license": "MIT",
   "bugs": {
     "url": "https://github.com/elierotenberg/nexus-flux/issues"
   },
   "homepage": "https://github.com/elierotenberg/nexus-flux",
   "devDependencies": {
-    "babel-eslint": "^3.1.9",
-    "del": "^1.2.0",
-    "eslint-plugin-react": "^2.3.0",
-    "gulp": "^3.8.11",
-    "gulp-babel": "^5.1.0",
-    "gulp-eslint": "^0.12.0",
-    "gulp-insert": "^0.4.0",
-    "gulp-jshint": "^1.11.0",
-    "gulp-plumber": "^1.0.1",
-    "gulp-sourcemaps": "^1.5.2",
-    "gulp-util": "^3.0.4",
-    "sha256": "^0.2.0"
+    "babel": "^5.5.8",
+    "babel-eslint": "^3.1.15",
+    "babel-runtime": "^5.5.8",
+    "eslint": "^0.23.0",
+    "eslint-plugin-react": "^2.5.2",
+    "gulp": "^3.9.0",
+    "gulp-eslint": "^0.14.0",
+    "gulp-mocha": "^2.1.1",
+    "gulp-plumber": "^1.0.1"
   },
   "dependencies": {
     "asap": "^2.0.3",
-    "babel": "^5.4.7",
-    "babel-runtime": "^5.4.7",
-    "bluebird": "^2.9.26",
+    "bluebird": "^2.9.30",
     "immutable": "^3.7.3",
-    "lifespan": "^3.1.0",
-    "lodash": "^3.9.2",
-    "nexus-events": "^2.1.0",
-    "remutable": "^1.1.1",
+    "lifespan": "^5.0.0",
+    "lodash": "^3.9.3",
+    "nexus-events": "^4.0.1",
+    "remutable": "^3.0.0",
+    "sha256": "^0.2.0",
     "should": "^6.0.3"
   }
 }
