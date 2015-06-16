@@ -1,1 +1,1 @@
-module.exports = require('../dist/adapters/Local');
+module.exports = require('../src/adapters/Local');
