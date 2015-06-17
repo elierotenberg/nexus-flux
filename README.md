@@ -17,7 +17,6 @@ Component #1 <---+
 Component #2 <---+-- LocalAdapter -> Global logic
                  |
 Component #3 <---+
-
 ```
 
 Over the wire Nexus Flux Diagram using Websockets (with socket.io fallback)
@@ -40,7 +39,6 @@ Component #B3 <---+
 Off-thread Flux using WebWorkers
 ```
 in the main thread   postMessage frames  in the webworker
-
 Component #1 <---+
                  |
 Component #2 <---+-- WebWorkerAdapter -> Global logic
