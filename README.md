@@ -52,7 +52,7 @@ Nexus Flux abstracts the concepts of Facebook's Flux architecture to its most ge
 - 'Clients' can subscribe to __Stores__ updates, and dispatch __Actions__ with a payload
 - 'Server' handles __Actions__ and update __Stores__.
 
-The Client/Server abstraction is merely an abstraction. The traditionnal, in-browser-memory
+The Client/Server abstraction is merely an abstraction. The traditional, in-browser-memory
 Flux implementation, is done purely on the (Internet) Client side. However, this abstraction allows
 to conceive Flux more rigorously and more importantly, to implement Flux over the Wire trivially.
 
