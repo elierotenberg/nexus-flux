@@ -52,16 +52,14 @@ Nexus Flux abstracts the concepts of Facebook's Flux architecture to its most ge
 - 'Clients' can subscribe to __Stores__ updates, and dispatch __Actions__ with a payload
 - 'Server' handles __Actions__ and update __Stores__.
 
-The Client/Server abstraction is merely an abstraction. The traditionnal, in-browser-memory
-Flux implementation, is done purely on the (Internet) Client side. However, this abstraction allows
-to conceive Flux more rigorously and more importantly, to implement Flux over the Wire trivially.
+The Client/Server abstraction is merely an abstraction.
+The traditionnal, in-browser-memory Flux implementation, is done purely on the (Internet) Client side.
+However, this abstraction allows to conceive Flux more rigorously and more importantly, to implement Flux over the Wire trivially.
 
-This representation of Flux enforces immutable Stores and asynchronous communication. Acknowledging
-that Flux communication is asycnhronous upfront avoid the pain of mindlessly wrapping everything in `setImmediate`
-on top of a synchronous implementation.
+This representation of Flux enforces immutable Stores and asynchronous communication.
+Acknowledging that Flux communication is asycnhronous upfront avoid the pain of mindlessly wrapping everything in `setImmediate` on top of a synchronous implementation.
 
-Nexus Flux provides an abstract implementation that takes away all boilerplate calls such as registering and unregistering callbacks, dealing with events directly, etc,
-and lets you focus on two things: your components logic and your global logic.
+Nexus Flux provides an abstract implementation that takes away all boilerplate calls such as registering and unregistering callbacks, dealing with events directly, etc, and lets you focus on two things: your components logic and your global logic.
 
 Nexus Flux is built with React, Nexus Uplink and React Nexus in mind, but it is not tied to any of these projects and can be used a standalone library.
 
@@ -154,7 +152,8 @@ const server = new Server(8080);
 
 #### In browser, off-thread local flux using [nexus-flux/adapters/Worker](https://github.com/elierotenberg/nexus-flux/tree/master/adapters/Worker.js)
 
-Defer expensive app-state data calculations off the main thread to avoid blocking UI. No black magic, just clever message passing.
+Defer expensive app-state data calculations off the main thread to avoid blocking UI.
+No black magic, just clever message passing.
 
 ```js
 // Client side: runs in the main thread
@@ -204,9 +203,9 @@ const server = new Server(8080);
 #### Implement your own adapter!
 
 If you think of a communication channel where Flux would be relevant, you can implement your own adapter.
-
 The LocalAdapter and WebworkerAdapter sources should provide helpful guidance for doing so.
 
 ### Usage
 
-This module is written in ES6/7. You will need `babel` to run it.
+This module is written in ES6/7.
+You will need `babel` to run it.
