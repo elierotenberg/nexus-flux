@@ -31,9 +31,12 @@ class Event {
     return this._json;
   }
 
-  static fromJSON(json) {
-    const { t, j } = JSON.parse(json);
+  static fromJS({ t, j }) {
     return Event._[t].fromJS(j);
+  }
+
+  static fromJSON(json) {
+    return Event.fromJS(JSON.parse(json));
   }
 }
 
