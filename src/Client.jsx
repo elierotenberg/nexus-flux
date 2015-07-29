@@ -276,7 +276,7 @@ class Client {
     const { engine, producer, patches } = this._stores[path];
     const prev = engine.remutable;
     // if we already have a more recent version and this resync isn't forced
-    if(!forceResync && prev.version >= next.version) {
+    if(!forceResync || prev.version >= next.version) {
       return;
     }
     // squash patches to create a single patch
