@@ -198,6 +198,7 @@ class Client {
 
   forceResync() {
     Object.keys(this._stores).forEach((path) => {
+      this.sendToServer(new Client.Event.Subscribe({ path }));
       const { producer, refetching } = this._stores[path];
       const { hash } = producer;
       if(!refetching) {
@@ -259,8 +260,9 @@ class Client {
       if(__DEV__) {
         this._stores[path].refetching.should.be.true;
       }
-      this._stores[path].refetching = false;
       this._upgrade(path, remutable, { forceResync });
+    }).finally(() => {
+      this._stores[path].refetching = false;
     });
   }
 
